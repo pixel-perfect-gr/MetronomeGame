@@ -17,23 +17,48 @@ domready(() => {
     }
 
     const scale = (): void => {
-        const scaleFactor = Math.floor(
-            Math.min(window.innerWidth / game.width, window.innerHeight / game.height)
-        );
+        const dpr = Math.max(1, Math.min(4, window.devicePixelRatio || 1));
 
-        const scaledWidth = game.width * scaleFactor;
-        const scaledHeight = game.height * scaleFactor;
+        const targetW = game.width;   // logical width  (1280)
+        const targetH = game.height;  // logical height (720)
+        const targetAspect = targetW / targetH;
+        const winW = window.innerWidth;
+        const winH = window.innerHeight;
+        const winAspect = winW / winH;
 
-        engine.screen.viewport = {width: scaledWidth, height: scaledHeight};
+        // Letterbox to preserve aspect (no stretch)
+        let vpW: number;
+        let vpH: number;
+        if (winAspect > targetAspect) {
+            // window is wider than game: fit by height
+            vpH = winH;
+            vpW = Math.round(vpH * targetAspect);
+        } else {
+            // window is taller/narrower: fit by width
+            vpW = winW;
+            vpH = Math.round(vpW / targetAspect);
+        }
+
+        // CSS size (viewport) in CSS pixels
+        engine.screen.viewport = { width: vpW, height: vpH };
+
+        // Backbuffer resolution in *device* pixels for crispness
+        engine.screen.resolution = { width: Math.round(vpW * dpr), height: Math.round(vpH * dpr) };
+
         engine.screen.applyResolutionAndViewport();
 
+        // Center the canvas and ensure CSS size matches the viewport
+        const left = Math.floor((winW - vpW) * 0.5);
+        const top  = Math.floor((winH - vpH) * 0.5);
+
+        engine.screen.canvas.style.position = "absolute";
+        engine.screen.canvas.style.left = `${left}px`;
+        engine.screen.canvas.style.top  = `${top}px`;
+        engine.screen.canvas.style.width  = `${vpW}px`;
+        engine.screen.canvas.style.height = `${vpH}px`;
+
+        // Focusable for keyboard
         engine.screen.canvas.tabIndex = 0;
-        engine.screen.canvas.style.left = `${Math.floor(
-            (window.innerWidth - scaledWidth) * 0.5
-        )}px`;
-        engine.screen.canvas.style.top = `${Math.floor(
-            (window.innerHeight - scaledHeight) * 0.5
-        )}px`;
     };
 
     const onKey = (event: KeyboardEvent): void => {
@@ -96,7 +121,7 @@ domready(() => {
         engine.canvas.style.cursor = "auto";
     };
 
-    scale();
+    //scale();
 
     window.addEventListener("resize", scale);
     window.addEventListener("keydown", onKey);
@@ -108,4 +133,9 @@ domready(() => {
     window.addEventListener("blur", onBlur, true);
 
     game.start();
+    document.documentElement.style.background = '#000';
+    document.body.style.background = '#000';
+    document.body.style.margin = '0';
+    document.body.style.height = '100%';
+    engine.screen.canvas.style.background = 'black';
 });

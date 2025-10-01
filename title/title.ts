@@ -1,5 +1,5 @@
 import type {Engine} from "excalibur";
-import {Actor, Color, Scene, TextAlign, Vector} from "excalibur";
+import {Actor, Color, Scene, TextAlign, Vector, ScreenElement} from "excalibur";
 import type Game from "../game.js";
 import Timer from "../metronome/timer.js";
 import resources from "../resources.js";
@@ -8,7 +8,7 @@ import {textActor} from "../text-actor.js";
 export default class Title extends Scene {
     private readonly smallTimer = new Timer(60);
     private readonly bigTimer = new Timer(30);
-    private readonly smallArm: Actor;
+    //private readonly smallArm: Actor;
     private readonly bigArm: Actor;
 
     private readonly startText = textActor({
@@ -34,7 +34,7 @@ export default class Title extends Scene {
         this.bigArm.graphics.add(resources.titleBigArm.toSprite());
         this.add(this.bigArm);
 
-        const body = new Actor({
+        /*const body = new Actor({
             pos: Vector.Zero,
             anchor: Vector.Zero
         });
@@ -46,7 +46,7 @@ export default class Title extends Scene {
             anchor: new Vector(11 / 22, 150 / 153)
         });
         this.smallArm.graphics.add(resources.titleSmallArm.toSprite());
-        this.add(this.smallArm);
+        this.add(this.smallArm);*/
 
         const logo = new Actor({
             pos: Vector.Zero,
@@ -81,7 +81,7 @@ export default class Title extends Scene {
         this.smallTimer.update(delta);
         this.bigTimer.update(delta);
 
-        this.smallArm.rotation = ((Math.sin(this.smallTimer.beat * Math.PI) * 40) / 180) * Math.PI;
+        //this.smallArm.rotation = ((Math.sin(this.smallTimer.beat * Math.PI) * 40) / 180) * Math.PI;
         this.bigArm.rotation = ((Math.sin(this.bigTimer.beat * Math.PI) * 50) / 180) * Math.PI;
 
         if (this.game.wasAnyKeyPressed()) {

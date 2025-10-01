@@ -1,5 +1,5 @@
-import type {Engine, Sound} from "excalibur";
-import {Actor, Color, EasingFunctions, Scene, TextAlign, Vector} from "excalibur";
+import type {Engine} from "excalibur";
+import { Actor, Color, EasingFunctions, Scene, TextAlign, Vector, Rectangle } from "excalibur";
 import type Game from "../game.js";
 import resources from "../resources.js";
 import Timer from "../metronome/timer.js";
@@ -14,8 +14,8 @@ const outroDuration = (50 / 60) * 1000;
 const scoreThreshold3Star = 6000;
 const scoreThreshold2Star = 2000;
 const scoreThreshold1Star = 1;
-const baseScore = 7;
-const maxMissedBeats = 4;
+const baseScore = 5;
+const maxMissedBeats = 5;
 
 enum State {
     intro = "intro",
@@ -28,16 +28,24 @@ enum State {
 }
 
 export class Performance extends Scene {
+    private static readonly ARM_CENTER = Math.PI * 2;
     private showInstructions = true;
     private readonly timer: Timer;
     private score = 0;
     private multiplier = 0;
     private missedBeats = 0;
-    private introBeat = 0;
     private beats = 0;
     private state = State.intro;
     private time = 0;
     private finalStars = 0;
+
+    private meterValue = 0;        // current score of bar, -100..100
+    private targetMeterValue = 0;  // smooth target
+    private readonly meterBar: Actor;
+    private readonly greenActor: Actor;
+    private readonly redActor: Actor;
+    private readonly meterFillGreen: Rectangle;
+    private readonly meterFillRed: Rectangle;
 
     private readonly tempoText = textActor({
         pos: new Vector(22, 24),
@@ -74,7 +82,7 @@ export class Performance extends Scene {
         f => (this.multiplierText[0].color = this.multiplierPerfectColorLerp.lerp(f))
     );
     private readonly messageText = textActor({
-        text: "Press ANY key in time with the pendulum",
+        text: "Press the button to Start",
         pos: new Vector(320, 167),
         color: Color.fromHex("eeeeee"),
         fontSize: 72,
@@ -153,7 +161,7 @@ export class Performance extends Scene {
         }
     );
     private readonly instructionText = textActor({
-        text: "Press ANY key in time with the pendulum",
+        text: "Press the button to Start",
         pos: new Vector(320, 370),
         color: Color.fromHex("eeeeee"),
         fontSize: 32,
@@ -168,46 +176,95 @@ export class Performance extends Scene {
         (30 / 60) * 1000,
         f => (this.instructionText[0].opacity = 1 - f)
     );
-
-    private readonly countdown: readonly Sound[] = [
-        resources.performanceOne,
-        resources.performanceTwo,
-        resources.performanceThree,
-        resources.performanceFour
-    ];
-
     public constructor(private readonly game: Game) {
         super();
         this.timer = new Timer(0);
 
-        const background = new Actor({
-            pos: Vector.Zero,
-            width: 640,
-            height: 480,
-            anchor: Vector.Zero
-        });
-        background.graphics.add(resources.performanceBackground.toSprite());
-        this.add(background);
+
+
+        const createZoneLine = (offset: number, color: Color, game: Game): Actor => {
+            const line = new Actor({
+                pos: new Vector(game.width / 2, game.height / 2),
+                anchor: new Vector(0.5, 1),  // bottom center so the line points outward from center
+                width: 4,
+                height: game.height / 2,
+                color
+            });
+            // Draw at ARM_CENTER ± offset
+            line.rotation = Performance.ARM_CENTER + offset;
+            line.graphics.opacity = 0.3;
+            return line;
+        };
+
+        // Perfect borders
+        this.add(createZoneLine( +0.05, Color.Yellow, this.game));
+        this.add(createZoneLine( -0.05, Color.Yellow, this.game));
+        // Good borders
+        this.add(createZoneLine( +0.15, Color.Green,  this.game));
+        this.add(createZoneLine( -0.15, Color.Green,  this.game));
+        // Optional wider border
+        this.add(createZoneLine( +0.25, Color.Green,  this.game));
+        this.add(createZoneLine( -0.25, Color.Green,  this.game));
+
+
+        // ====== BAR SETUP ======
+        const barWidth  = 400;
+        const barHeight = 30;
+        const barPos    = new Vector(this.game.width / 2, this.game.height * 0.1);
+
+        // Background
+        const meterBg = new Actor({ pos: barPos, anchor: new Vector(0.5, 0.5) });
+        meterBg.graphics.use(new Rectangle({ width: barWidth, height: barHeight, color: Color.fromHex("#333333") }));
+        this.add(meterBg);
+
+        // Container
+        this.meterBar = new Actor({ pos: barPos, anchor: new Vector(0.5, 0.5) });
+        this.add(this.meterBar);
+
+        // Green (right side, half bar)
+        this.meterFillGreen = new Rectangle({ width: barWidth / 2, height: barHeight, color: Color.Green });
+        this.greenActor = new Actor({ pos: barPos.clone(), anchor: new Vector(0, 0.5) }); // left edge = center
+        this.greenActor.graphics.use(this.meterFillGreen);
+        this.add(this.greenActor);
+
+        // Red (left side, half bar)
+        this.meterFillRed = new Rectangle({ width: barWidth / 2, height: barHeight, color: Color.Red });
+        this.redActor = new Actor({ pos: barPos.clone(), anchor: new Vector(1, 0.5) }); // right edge = center
+        this.redActor.graphics.use(this.meterFillRed);
+        this.add(this.redActor);
+
+
+        // ====== END BAR SETUP ======
 
         this.add(this.arm);
+        this.arm.pos = new Vector(this.game.width / 2, this.game.height / 2);
 
         const overlay = new Actor({
             pos: Vector.Zero,
-            width: 640,
-            height: 480,
+            width: this.game.width,
+            height: this.game.height,
             anchor: Vector.Zero
         });
         overlay.graphics.add(resources.performanceOverlay.toSprite());
-        this.add(overlay);
+        //this.add(overlay);
 
         const vignette = new Actor({
             pos: Vector.Zero,
-            width: 640,
-            height: 480,
+            width: this.game.width,
+            height: this.game.height,
             anchor: Vector.Zero
         });
         vignette.graphics.add(resources.performanceVignette.toSprite());
-        this.add(vignette);
+        //this.add(vignette);
+
+        this.tempoText[1].pos      = new Vector(this.game.width * 0.05, this.game.height * 0.05);
+        this.bpmText[1].pos        = new Vector(this.game.width * 0.05, this.game.height * 0.08);
+        this.scoreText[1].pos      = new Vector(this.game.width * 0.95, this.game.height * 0.05);
+        this.multiplierText[1].pos = new Vector(this.game.width * 0.95, this.game.height * 0.08);
+
+        this.messageText[1].pos    = new Vector(this.game.width / 2, this.game.height * 0.25);
+        this.instructionText[1].pos= new Vector(this.game.width / 2, this.game.height * 0.6);
+
 
         this.add(this.tempoText[1]);
         this.add(this.bpmText[1]);
@@ -232,6 +289,11 @@ export class Performance extends Scene {
         this.star3.graphics.add(resources.performanceBigStar.toSprite());
         this.add(this.star3);
 
+        this.star1.pos = new Vector(this.game.width / 2 - 200, this.game.height * 0.85);
+        this.star2.pos = new Vector(this.game.width / 2,       this.game.height * 0.85);
+        this.star3.pos = new Vector(this.game.width / 2 + 200, this.game.height * 0.85);
+
+
         this.add(this.starBlankFadeIn);
         this.add(this.star1FadeIn);
         this.add(this.star2FadeIn);
@@ -251,7 +313,6 @@ export class Performance extends Scene {
         this.multiplier = 0;
         this.game.stars = 0;
         this.missedBeats = 0;
-        this.introBeat = 0;
         this.timer.reset(this.game.bpm);
         this.arm.reset();
         this.tempoText[0].text = this.game.tempo;
@@ -259,6 +320,12 @@ export class Performance extends Scene {
         this.beats = 16;
         this.state = State.intro;
         this.time = introDuration;
+
+        // === Reset bar values ===
+        this.meterValue = 0;
+        this.targetMeterValue = 0;
+        this.greenActor.scale = new Vector(0.001, 1);
+        this.redActor.scale   = new Vector(0.001, 1);
 
         this.star1Blank.graphics.opacity = 0;
         this.star2Blank.graphics.opacity = 0;
@@ -292,25 +359,20 @@ export class Performance extends Scene {
             case State.intro:
                 // Pause a bit before starting
                 this.time -= delta;
-                if (this.time <= 0) {
+                if (this.game.wasAnyKeyPressed()) {
+                    this.transition(State.play);
+                } else if (this.time <= 0) {
                     this.transition(State.countIn);
                 }
                 break;
             case State.countIn:
-                if (this.timer.isBeat) {
-                    this.countdown[this.introBeat]?.play().then(
-                        () => void 0,
-                        reason => void console.error("", reason)
-                    );
-                    ++this.introBeat;
-
-                    if (this.introBeat >= 4) {
-                        this.transition(State.play);
-                    }
+                if (this.game.wasAnyKeyPressed()) {
+                    this.transition(State.play);
                 }
                 break;
             case State.play:
-                this.arm.beat(this.timer.beat);
+                // make the arm swing continuously
+                this.arm.beat(engine.clock.now(), this.game.bpm);
 
                 if (this.timer.isOffBeat) {
                     ++this.missedBeats;
@@ -322,11 +384,16 @@ export class Performance extends Scene {
                         void this.instructionFadeOut.play();
                         this.showInstructions = false;
                     }
+                    this.add(this.createTriggerLine(this.arm.rotation));
 
-                    const missed = this.timer.offBeatMs >= (4 / 60) * 1000;
+                    const distance = this.angleDistance(this.arm.rotation, Performance.ARM_CENTER);
+
+                    // "missed" means you pressed way outside the allowed window
+                    const missed = distance > 0.5; // > ~28 degrees
                     if (missed) {
                         this.arm.miss();
                         this.multiplier = 0;
+                        this.missedBeats++;
                         void this.multiplierMissTween.play();
                     } else {
                         this.arm.tickTock();
@@ -335,35 +402,30 @@ export class Performance extends Scene {
                     }
 
                     // What kind of hit did we register?
-                    if (this.timer.offBeatMs < (1 / 60) * 1000) {
+                    if (distance < 0.05) { // ~3°
                         this.add(new Floater("Perfect!", Color.fromHex("d3cd08")));
                         this.multiplier += 4;
                         void this.multiplierPerfectTween.play();
-                        resources.performanceChime.play().then(
-                            () => void 0,
-                            reason => void console.error("", reason)
-                        );
-                    } else if (this.timer.offBeatMs < (3 / 60) * 1000) {
-                        this.add(new Floater("Good", Color.fromHex("0bd308")));
-                    } else if (this.timer.offBeatMs < (4 / 60) * 1000) {
-                        // Do nothing
-                    } else if (this.timer.offBeatMs < (7 / 60) * 1000) {
-                        this.add(new Floater("Miss", Color.fromHex("5368b2")));
-                    } else if (this.timer.offBeatMs < (8 / 60) * 1000) {
-                        // Do nothing
-                        // TODO: Is this really intended?
-                    } else if (this.timer.offBeatMs < (10 / 60) * 1000) {
-                        this.add(new Floater("Poor", Color.fromHex("c41b18")));
+                        this.targetMeterValue = Math.min(100, this.targetMeterValue + 10);  // perfect
+                        resources.performanceChime.play().catch(console.error);
+                    } else if (distance < 0.15) { // ~8.5°
+                        this.add(new Floater("Nice", Color.fromHex("d3cd08")));
+                        this.targetMeterValue = Math.min(100, this.targetMeterValue + 7);  // perfect
+                    } else if (distance < 0.25) { // ~14°
+                        this.add(new Floater("Good", Color.fromHex("d3cd08")));
+                        this.targetMeterValue = Math.min(100, this.targetMeterValue + 5);  // perfect
                     } else {
                         this.add(new Floater("Awful!", Color.fromHex("c41b18")));
+                        this.targetMeterValue = Math.max(-100, this.targetMeterValue - 15); // awful
                     }
 
-                    // Score some points if we hit.
+                    // Score some points if we hit (closer = higher factor)
                     if (!missed) {
-                        const factor = Math.max(
-                            0,
-                            4 - Math.floor((this.timer.offBeatMs / 1000) * 60)
-                        );
+                        const factor =
+                            distance < 0.05 ? 4 :
+                                distance < 0.15 ? 3 :
+                                    distance < 0.25 ? 2 :
+                                        1;
                         this.score += factor * this.multiplier * baseScore;
                     }
                 }
@@ -389,6 +451,39 @@ export class Performance extends Scene {
                 }
                 break;
         }
+
+        // Smoothly move towards target
+        const lerpSpeed = 5;
+        this.meterValue += (this.targetMeterValue - this.meterValue) * (lerpSpeed * delta / 1000);
+
+        // Clamp
+        this.meterValue = Math.max(-100, Math.min(100, this.meterValue));
+
+        // Scale relative to half width
+        const fill = this.meterValue / 100; // -1..1
+
+        if (fill >= 0) {
+            this.greenActor.scale = new Vector(fill, 1);
+            this.redActor.scale   = new Vector(0.001, 1);
+        } else {
+            this.greenActor.scale = new Vector(0.001, 1);
+            this.redActor.scale   = new Vector(-fill, 1);
+        }
+
+        // BPM change
+        if (this.meterValue >= 95) {
+            this.game.bpm = Math.min(300, this.game.bpm + 10);
+            this.bpmText[0].text = `${this.game.bpm}bpm`;
+            this.targetMeterValue = 0;
+            this.meterValue = 0;
+        } else if (this.meterValue <= -95) {
+            this.game.bpm = Math.max(40, this.game.bpm - 10);
+            this.bpmText[0].text = `${this.game.bpm}bpm`;
+            this.targetMeterValue = 0;
+            this.meterValue = 0;
+        }
+
+
     }
 
     private updateScoreAndMultiplierText(): void {
@@ -443,7 +538,7 @@ export class Performance extends Scene {
                 break;
             case State.return:
                 this.game.stars = this.finalStars;
-                this.game.engine.goToScene("menu");
+                this.game.engine.goToScene("performance");
                 break;
         }
     }
@@ -463,5 +558,33 @@ export class Performance extends Scene {
         } else {
             this.finalStars = 0;
         }
+    }
+
+    private  createTriggerLine(rotation: number): Actor {
+        const line = new Actor({
+            pos: new Vector(this.game.width / 2, this.game.height / 2),
+            anchor: new Vector(0.5, 1),        // bottom so it points away from center
+            width: 4,
+            height: this.game.height / 2,
+            color: Color.Red
+        });
+
+        line.rotation = rotation;            // draw exactly at arm rotation
+        line.graphics.opacity = 0.7;
+        line.actions.delay(500).callMethod(() => {
+            line.kill();
+        });
+        return line;
+    }
+
+    private angleDistance(a: number, b: number): number {
+        let diff = a - b;
+        while (diff < -Math.PI) {
+            diff += Math.PI * 2;
+        }
+        while (diff > Math.PI)  {
+            diff -= Math.PI * 2;
+        }
+        return Math.abs(diff);
     }
 }

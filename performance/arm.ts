@@ -47,10 +47,18 @@ export default class Arm extends Actor {
     public reset(): void {
         this.shake = 0;
         this.tick = false;
-        this.beat(0);
+        this.beat(0, 0);
     }
 
-    public beat(beat: number): void {
-        this.rotation = ((Math.sin(beat * Math.PI) * 30) / 180) * Math.PI;
+    public beat(timeMs: number, bpm: number): void {
+        const secondsPerBeat = 60 / bpm;
+        const period = secondsPerBeat * 1000; // ms per full cycle
+
+        // convert current time to phase [0..2π]
+        const phase = (timeMs % period) / period * Math.PI * 2;
+
+        // swing ±30°
+        this.rotation = Math.sin(phase) * (50 * Math.PI / 180);
     }
+
 }
