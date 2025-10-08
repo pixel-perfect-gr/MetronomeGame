@@ -1,10 +1,8 @@
 import {values} from "@softwareventures/dictionary";
 import {DisplayMode, Engine, Loader} from "excalibur";
-import Menu from "./menu/menu.js";
 import Music from "./music/music.js";
 import {Performance} from "./performance/performance.js";
 import resources from "./resources.js";
-import Title from "./title/title.js";
 
 export default class Game {
     public readonly width = 1080;
@@ -20,7 +18,7 @@ export default class Game {
     public readonly engine = new Engine({
         viewport: { width: this.width, height: this.height },
         resolution: { width: this.width, height: this.height },
-        displayMode: DisplayMode.FillScreen,
+        displayMode: DisplayMode.FitScreen,
         antialiasing: true,
         suppressHiDPIScaling: false,
         suppressPlayButton: true
@@ -36,10 +34,9 @@ export default class Game {
                 this.engine.input.keyboard.on("press", () => (this.anyKeyPressed = true));
                 this.engine.on("postframe", () => (this.anyKeyPressed = false));
 
-                this.engine.addScene("title", new Title(this));
-                this.engine.addScene("menu", new Menu(this));
                 this.engine.addScene("performance", new Performance(this));
                 this.engine.goToScene("performance");
+
             },
             reason => void console.error("", reason)
         );

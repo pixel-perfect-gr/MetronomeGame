@@ -1,21 +1,15 @@
 import type {Engine} from "excalibur";
-import { Actor, Color, EasingFunctions, Scene, TextAlign, Vector, Rectangle } from "excalibur";
+import { Actor, Color, Scene, TextAlign, Vector, Rectangle, Polygon } from "excalibur";
 import type Game from "../game.js";
 import resources from "../resources.js";
 import Timer from "../metronome/timer.js";
 import {textActor} from "../text-actor.js";
-import {ColorLerp} from "./color.js";
 import Floater from "./floater.js";
-import Tween from "./tween.js";
 import Arm from "./arm.js";
 
-const introDuration = (30 / 60) * 1000;
-const outroDuration = (50 / 60) * 1000;
-const scoreThreshold3Star = 6000;
-const scoreThreshold2Star = 2000;
-const scoreThreshold1Star = 1;
+const introDuration = 1;
+const outroDuration = 1;
 const baseScore = 5;
-const maxMissedBeats = 5;
 
 enum State {
     intro = "intro",
@@ -28,25 +22,37 @@ enum State {
 }
 
 export class Performance extends Scene {
-    private static readonly ARM_CENTER = Math.PI * 2;
-    private showInstructions = true;
+    private static readonly ARM_CENTER = 0; // το "κέντρο" της φάσης
     private readonly timer: Timer;
     private score = 0;
     private multiplier = 0;
-    private missedBeats = 0;
-    private beats = 0;
     private state = State.intro;
     private time = 0;
-    private finalStars = 0;
 
-    private meterValue = 0;        // current score of bar, -100..100
-    private targetMeterValue = 0;  // smooth target
-    private readonly meterBar: Actor;
+    private readonly lastHitLine?: Actor;
+    private readonly pivot!: Actor;
+
+    private readonly lerpSpeed = 0.002;
+    private beatsPerMs = 0;
+    private drainRate = 0;
+
+    private musicAttached = false;
+    private readonly floaterPool: Floater[] = [];
+
+
+    private meterValue = 100;
     private readonly greenActor: Actor;
-    private readonly redActor: Actor;
     private readonly meterFillGreen: Rectangle;
-    private readonly meterFillRed: Rectangle;
 
+    // BPM handling
+    private bpmTarget = 30;
+    private bpmCurrent = 30;
+    private bpmTimer = 0;
+
+    // Arm phase accumulator
+    private armPhase = 0;
+
+    // Texts
     private readonly tempoText = textActor({
         pos: new Vector(22, 24),
         color: Color.fromHex("eeeeee"),
@@ -58,306 +64,154 @@ export class Performance extends Scene {
         fontSize: 24
     });
     private readonly scoreText = textActor({
-        pos: new Vector(618, 15),
-        color: Color.fromHex("eeeeee"),
-        fontSize: 48,
-        textAlign: TextAlign.Right
+        pos: new Vector(this.game.width - 20, 20),
+        textAlign: TextAlign.Right,
+        fontSize: 36,
+        color: Color.White
     });
     private readonly multiplierText = textActor({
         pos: new Vector(618, 58),
         fontSize: 28,
         textAlign: TextAlign.Right
     });
-    private readonly multiplierMissColorLerp = new ColorLerp(Color.fromHex("c41b18"), Color.White);
-    private readonly multiplierMissTween = new Tween(
-        (10 / 60) * 1000,
-        f => (this.multiplierText[0].color = this.multiplierMissColorLerp.lerp(f))
-    );
-    private readonly multiplierPerfectColorLerp = new ColorLerp(
-        Color.fromHex("d3cd08"),
-        Color.White
-    );
-    private readonly multiplierPerfectTween = new Tween(
-        (10 / 60) * 1000,
-        f => (this.multiplierText[0].color = this.multiplierPerfectColorLerp.lerp(f))
-    );
     private readonly messageText = textActor({
         text: "Press the button to Start",
-        pos: new Vector(320, 167),
+        pos: new Vector(this.game.width / 2, this.game.height / 2),
         color: Color.fromHex("eeeeee"),
         fontSize: 72,
         textAlign: TextAlign.Center
     });
-    private readonly messageFadeIn = new Tween(
-        (20 / 60) * 1000,
-        f => (this.messageText[0].opacity = f)
-    );
-    private readonly messageFadeOut = new Tween(
-        (20 / 60) * 1000,
-        f => (this.messageText[0].opacity = 1 - f)
-    );
+
     private readonly arm = new Arm();
-    private readonly star1Blank = new Actor({pos: new Vector(180, 300), width: 158, height: 152});
-    private readonly star2Blank = new Actor({pos: new Vector(320, 300), width: 158, height: 152});
-    private readonly star3Blank = new Actor({pos: new Vector(460, 300), width: 158, height: 152});
-    private readonly star1 = new Actor({pos: new Vector(180, 300), width: 120, height: 115});
-    private readonly star2 = new Actor({pos: new Vector(320, 300), width: 120, height: 115});
-    private readonly star3 = new Actor({pos: new Vector(460, 300), width: 120, height: 115});
-    private readonly starBlankFadeIn = new Tween((30 / 60) * 1000, f => {
-        this.star1Blank.graphics.opacity = f;
-        this.star2Blank.graphics.opacity = f;
-        this.star3Blank.graphics.opacity = f;
+
+    // debug overlay
+    private readonly debugText = textActor({
+        pos: new Vector(20, 100),
+        color: Color.Yellow,
+        fontSize: 20,
+        textAlign: TextAlign.Left
     });
-    private readonly star1FadeIn = new Tween(
-        (10 / 60) * 1000,
-        f => {
-            this.star1.graphics.opacity = f;
-            const scale = 0.6 + 0.4 * f;
-            this.star1.scale = new Vector(scale, scale);
-        },
-        EasingFunctions.Linear,
-        () => {
-            if (this.finalStars > 1) {
-                resources.performanceStar2.play().then(
-                    () => {},
-                    reason => void console.error("", reason)
-                );
-                this.star2FadeIn.play().catch(reason => void console.error("", reason));
-            } else {
-                this.transition(State.done);
-            }
-        }
-    );
-    private readonly star2FadeIn = new Tween(
-        (10 / 60) * 1000,
-        f => {
-            this.star2.graphics.opacity = f;
-            const scale = 0.6 + 0.4 * f;
-            this.star2.scale = new Vector(scale, scale);
-        },
-        EasingFunctions.Linear,
-        () => {
-            if (this.finalStars > 2) {
-                resources.performanceStar3.play().then(
-                    () => {},
-                    reason => void console.error("", reason)
-                );
-                this.star3FadeIn.play().catch(reason => void console.error("", reason));
-            } else {
-                this.transition(State.done);
-            }
-        }
-    );
-    private readonly star3FadeIn = new Tween(
-        (10 / 60) * 1000,
-        f => {
-            this.star3.graphics.opacity = f;
-            const scale = 0.6 + 0.4 * f;
-            this.star3.scale = new Vector(scale, scale);
-        },
-        EasingFunctions.Linear,
-        () => {
-            this.transition(State.done);
-        }
-    );
-    private readonly instructionText = textActor({
-        text: "Press the button to Start",
-        pos: new Vector(320, 370),
-        color: Color.fromHex("eeeeee"),
-        fontSize: 32,
-        textAlign: TextAlign.Center,
-        opacity: 0
-    });
-    private readonly instructionFadeIn = new Tween(
-        (30 / 60) * 1000,
-        f => (this.instructionText[0].opacity = f)
-    );
-    private readonly instructionFadeOut = new Tween(
-        (30 / 60) * 1000,
-        f => (this.instructionText[0].opacity = 1 - f)
-    );
     public constructor(private readonly game: Game) {
         super();
         this.timer = new Timer(0);
-
-
-
-        const createZoneLine = (offset: number, color: Color, game: Game): Actor => {
-            const line = new Actor({
-                pos: new Vector(game.width / 2, game.height / 2),
-                anchor: new Vector(0.5, 1),  // bottom center so the line points outward from center
-                width: 4,
-                height: game.height / 2,
-                color
-            });
-            // Draw at ARM_CENTER ± offset
-            line.rotation = Performance.ARM_CENTER + offset;
-            line.graphics.opacity = 0.3;
-            return line;
-        };
-
-        // Perfect borders
-        this.add(createZoneLine( +0.05, Color.Yellow, this.game));
-        this.add(createZoneLine( -0.05, Color.Yellow, this.game));
-        // Good borders
-        this.add(createZoneLine( +0.15, Color.Green,  this.game));
-        this.add(createZoneLine( -0.15, Color.Green,  this.game));
-        // Optional wider border
-        this.add(createZoneLine( +0.25, Color.Green,  this.game));
-        this.add(createZoneLine( -0.25, Color.Green,  this.game));
-
 
         // ====== BAR SETUP ======
         const barWidth  = 400;
         const barHeight = 30;
         const barPos    = new Vector(this.game.width / 2, this.game.height * 0.1);
 
-        // Background
         const meterBg = new Actor({ pos: barPos, anchor: new Vector(0.5, 0.5) });
         meterBg.graphics.use(new Rectangle({ width: barWidth, height: barHeight, color: Color.fromHex("#333333") }));
         this.add(meterBg);
 
-        // Container
-        this.meterBar = new Actor({ pos: barPos, anchor: new Vector(0.5, 0.5) });
-        this.add(this.meterBar);
-
-        // Green (right side, half bar)
-        this.meterFillGreen = new Rectangle({ width: barWidth / 2, height: barHeight, color: Color.Green });
-        this.greenActor = new Actor({ pos: barPos.clone(), anchor: new Vector(0, 0.5) }); // left edge = center
+        this.meterFillGreen = new Rectangle({ width: barWidth, height: barHeight, color: Color.Green });
+        this.greenActor = new Actor({ pos: barPos.clone(), anchor: new Vector(0.5, 0.5) });
         this.greenActor.graphics.use(this.meterFillGreen);
         this.add(this.greenActor);
 
-        // Red (left side, half bar)
-        this.meterFillRed = new Rectangle({ width: barWidth / 2, height: barHeight, color: Color.Red });
-        this.redActor = new Actor({ pos: barPos.clone(), anchor: new Vector(1, 0.5) }); // right edge = center
-        this.redActor.graphics.use(this.meterFillRed);
-        this.add(this.redActor);
-
-
-        // ====== END BAR SETUP ======
-
         this.add(this.arm);
-        this.arm.pos = new Vector(this.game.width / 2, this.game.height / 2);
+        //this.arm.pos = new Vector(this.game.width / 2, this.game.height / 2);
 
-        const overlay = new Actor({
-            pos: Vector.Zero,
-            width: this.game.width,
-            height: this.game.height,
-            anchor: Vector.Zero
-        });
-        overlay.graphics.add(resources.performanceOverlay.toSprite());
-        //this.add(overlay);
-
-        const vignette = new Actor({
-            pos: Vector.Zero,
-            width: this.game.width,
-            height: this.game.height,
-            anchor: Vector.Zero
-        });
-        vignette.graphics.add(resources.performanceVignette.toSprite());
-        //this.add(vignette);
-
-        this.tempoText[1].pos      = new Vector(this.game.width * 0.05, this.game.height * 0.05);
-        this.bpmText[1].pos        = new Vector(this.game.width * 0.05, this.game.height * 0.08);
-        this.scoreText[1].pos      = new Vector(this.game.width * 0.95, this.game.height * 0.05);
-        this.multiplierText[1].pos = new Vector(this.game.width * 0.95, this.game.height * 0.08);
-
-        this.messageText[1].pos    = new Vector(this.game.width / 2, this.game.height * 0.25);
-        this.instructionText[1].pos= new Vector(this.game.width / 2, this.game.height * 0.6);
-
-
+        // texts
         this.add(this.tempoText[1]);
         this.add(this.bpmText[1]);
         this.add(this.scoreText[1]);
         this.add(this.multiplierText[1]);
-        this.add(this.multiplierMissTween);
-        this.add(this.multiplierPerfectTween);
         this.add(this.messageText[1]);
-        this.add(this.messageFadeIn);
-        this.add(this.messageFadeOut);
 
-        this.star1Blank.graphics.add(resources.performanceBigStarBlank.toSprite());
-        this.add(this.star1Blank);
-        this.star2Blank.graphics.add(resources.performanceBigStarBlank.toSprite());
-        this.add(this.star2Blank);
-        this.star3Blank.graphics.add(resources.performanceBigStarBlank.toSprite());
-        this.add(this.star3Blank);
-        this.star1.graphics.add(resources.performanceBigStar.toSprite());
-        this.add(this.star1);
-        this.star2.graphics.add(resources.performanceBigStar.toSprite());
-        this.add(this.star2);
-        this.star3.graphics.add(resources.performanceBigStar.toSprite());
-        this.add(this.star3);
+        this.pivot = new Actor({
+            pos: new Vector(this.game.width / 2, this.game.height / 2),
+            anchor: new Vector(0.5, 0.5)
+        });
+        this.add(this.pivot);
 
-        this.star1.pos = new Vector(this.game.width / 2 - 200, this.game.height * 0.85);
-        this.star2.pos = new Vector(this.game.width / 2,       this.game.height * 0.85);
-        this.star3.pos = new Vector(this.game.width / 2 + 200, this.game.height * 0.85);
+        // Ensure the arm rotates around its own anchor at the pivot
+        this.arm.anchor = new Vector(0.5, 1); // bottom-center pivot (adjust to your sprite)
+        this.arm.pos = Vector.Zero;           // relative to pivot
+        this.pivot.addChild(this.arm);
 
+        // --- Static zone arcs (added once, not every activation)
+        const center = Vector.Zero;
 
-        this.add(this.starBlankFadeIn);
-        this.add(this.star1FadeIn);
-        this.add(this.star2FadeIn);
-        this.add(this.star3FadeIn);
+        const arcBad = this.createZoneArc(270, 370, -50, 50, Color.Red);
+        arcBad.pos = center; this.pivot.addChild(arcBad); arcBad.anchor = new Vector(0.5, 1);
 
-        this.add(this.instructionText[1]);
-        this.add(this.instructionFadeIn);
-        this.add(this.instructionFadeOut);
+        const arcGood = this.createZoneArc(270, 370, -30, 30, Color.Gray);
+        arcGood.pos = center; this.pivot.addChild(arcGood); arcGood.anchor = new Vector(0.5, 1);
+
+        const arcNice = this.createZoneArc(270, 370, -20, 20, Color.Yellow);
+        arcNice.pos = center; this.pivot.addChild(arcNice); arcNice.anchor = new Vector(0.5, 1);
+
+        const arcPerfect = this.createZoneArc(270, 370, -10, 10, Color.Green);
+        arcPerfect.pos = center; this.pivot.addChild(arcPerfect); arcPerfect.anchor = new Vector(0.5, 1);
+
+        this.arm.z = 10; // ensure arm is drawn above arcs
+
+        // debug
+        this.add(this.debugText[1]);
     }
 
     public override onActivate(): void {
-        this.game.music.kill();
-        this.add(this.game.music);
+        if (!this.musicAttached) {
+            this.add(this.game.music);
+            this.musicAttached = true;
+        }
+        this.game.music.stop();
         this.game.music.stop();
 
         this.score = 0;
         this.multiplier = 0;
-        this.game.stars = 0;
-        this.missedBeats = 0;
-        this.timer.reset(this.game.bpm);
+        this.timer.reset(30);
         this.arm.reset();
+
         this.tempoText[0].text = this.game.tempo;
-        this.bpmText[0].text = `${this.game.bpm}bpm`;
-        this.beats = 16;
+        this.bpmText[0].text = `30 bpm`;
+        this.scoreText[0].text = "000000";
+        this.multiplierText[0].text = "000";
         this.state = State.intro;
         this.time = introDuration;
 
-        // === Reset bar values ===
-        this.meterValue = 0;
-        this.targetMeterValue = 0;
-        this.greenActor.scale = new Vector(0.001, 1);
-        this.redActor.scale   = new Vector(0.001, 1);
-
-        this.star1Blank.graphics.opacity = 0;
-        this.star2Blank.graphics.opacity = 0;
-        this.star3Blank.graphics.opacity = 0;
-        this.star1.graphics.opacity = 0;
-        this.star2.graphics.opacity = 0;
-        this.star3.graphics.opacity = 0;
-        this.star1.scale = new Vector(0.6, 0.6);
-        this.star2.scale = new Vector(0.6, 0.6);
-        this.star3.scale = new Vector(0.6, 0.6);
-
-        this.updateScoreAndMultiplierText();
-        this.multiplierText[0].color = Color.White;
+        this.meterValue = 100;
+        this.greenActor.scale = new Vector(1, 1);
 
         this.messageText[0].text = "Ready?";
-        this.messageText[0].opacity = 0;
-        void this.messageFadeIn.play();
+        this.messageText[0].opacity = 1;
 
-        resources.performanceReady.play().then(
-            () => void 0,
-            reason => void console.error("", reason)
-        );
+        this.bpmTarget = 30;
+        this.bpmCurrent = 30;
+        this.armPhase = 0;
+        this.bpmTimer = 0;
+
+        resources.performanceReady.play().catch(console.error);
     }
+
+    public override onDeactivate(): void {
+        // Stop any playing music or sounds
+        this.game.music.stop();
+
+        // Kill all transient actors (Floaters, debug, etc.)
+        for (const a of this.actors) {
+            if (a instanceof Floater) {a.kill()}
+        }
+
+        // Clear timers, if any
+        this.timer.reset(0);
+
+        // Remove any references to help GC
+        this.actors.forEach(actor => {
+            actor.events.clear(); // removes lingering event listeners
+        });
+
+        console.log("[Performance] Scene deactivated and cleaned.");
+    }
+
 
     public override update(engine: Engine, delta: number): void {
         super.update(engine, delta);
-
         this.timer.update(delta);
 
         switch (this.state) {
             case State.intro:
-                // Pause a bit before starting
                 this.time -= delta;
                 if (this.game.wasAnyKeyPressed()) {
                     this.transition(State.play);
@@ -365,86 +219,97 @@ export class Performance extends Scene {
                     this.transition(State.countIn);
                 }
                 break;
+
             case State.countIn:
                 if (this.game.wasAnyKeyPressed()) {
                     this.transition(State.play);
                 }
                 break;
-            case State.play:
-                // make the arm swing continuously
-                this.arm.beat(engine.clock.now(), this.game.bpm);
 
-                if (this.timer.isOffBeat) {
-                    ++this.missedBeats;
-                    --this.beats;
+            case State.play:
+                // κάθε 8s ανεβάζουμε target BPM
+                this.bpmTimer += delta;
+                if (this.bpmTimer >= 8000) {
+                    this.bpmTarget = Math.min(150, this.bpmTarget + 5);
+                    this.bpmTimer = 0;
                 }
+
+                // Smooth approach: lerp bpmCurrent προς bpmTarget
+
+                this.bpmCurrent += (this.bpmTarget - this.bpmCurrent) * this.lerpSpeed * delta;
+
+                // Phase accumulator για το Arm
+                this.beatsPerMs = this.bpmCurrent / 60000;
+                this.armPhase += this.beatsPerMs * delta;
+                this.armPhase %= 1;
+                this.arm.rotation = Math.sin(this.armPhase * Math.PI * 2) * (50 * Math.PI / 180);
+
+                // meter drains
+                this.drainRate = 5;
+                this.meterValue -= this.drainRate * (delta / 1000);
+
 
                 if (this.game.wasAnyKeyPressed()) {
-                    if (this.showInstructions && this.instructionText[0].opacity === 1) {
-                        void this.instructionFadeOut.play();
-                        this.showInstructions = false;
-                    }
-                    this.add(this.createTriggerLine(this.arm.rotation));
-
                     const distance = this.angleDistance(this.arm.rotation, Performance.ARM_CENTER);
+                    const missed = distance > 0.5;
 
-                    // "missed" means you pressed way outside the allowed window
-                    const missed = distance > 0.5; // > ~28 degrees
                     if (missed) {
-                        this.arm.miss();
+                        this.meterValue -= 10;
                         this.multiplier = 0;
-                        this.missedBeats++;
-                        void this.multiplierMissTween.play();
                     } else {
                         this.arm.tickTock();
-                        ++this.multiplier;
-                        this.missedBeats = 0;
+                        this.multiplier++;
                     }
 
-                    // What kind of hit did we register?
-                    if (distance < 0.05) { // ~3°
-                        this.add(new Floater("Perfect!", Color.fromHex("d3cd08")));
-                        this.multiplier += 4;
-                        void this.multiplierPerfectTween.play();
-                        this.targetMeterValue = Math.min(100, this.targetMeterValue + 10);  // perfect
+                    const normRot = this.normalizeAngle(this.arm.rotation);
+                    const distance1 = this.angleDistance(normRot, Performance.ARM_CENTER);
+
+
+
+                    if (this.lastHitLine != null){
+                        this.lastHitLine.kill();
+                    } 
+
+
+                    if (distance1 < 0.1) {
+                        this.spawnFloater("Perfect!", Color.Green);
+                        this.meterValue = Math.min(100, this.meterValue + 8);
+                        this.score += baseScore * this.multiplier * 4;
                         resources.performanceChime.play().catch(console.error);
-                    } else if (distance < 0.15) { // ~8.5°
-                        this.add(new Floater("Nice", Color.fromHex("d3cd08")));
-                        this.targetMeterValue = Math.min(100, this.targetMeterValue + 7);  // perfect
-                    } else if (distance < 0.25) { // ~14°
-                        this.add(new Floater("Good", Color.fromHex("d3cd08")));
-                        this.targetMeterValue = Math.min(100, this.targetMeterValue + 5);  // perfect
+                    } else if (distance1 < 0.20) {
+                        this.spawnFloater("Nice", Color.fromHex("d3cd08"));
+                        this.meterValue = Math.min(100, this.meterValue + 5);
+                        this.score += baseScore * this.multiplier * 3;
+                    } else if (distance1 < 0.30) {
+                        this.spawnFloater("Good", Color.LightGray);
+                        this.meterValue = Math.min(100, this.meterValue + 3);
+                        this.score += baseScore * this.multiplier * 2;
                     } else {
-                        this.add(new Floater("Awful!", Color.fromHex("c41b18")));
-                        this.targetMeterValue = Math.max(-100, this.targetMeterValue - 15); // awful
-                    }
-
-                    // Score some points if we hit (closer = higher factor)
-                    if (!missed) {
-                        const factor =
-                            distance < 0.05 ? 4 :
-                                distance < 0.15 ? 3 :
-                                    distance < 0.25 ? 2 :
-                                        1;
-                        this.score += factor * this.multiplier * baseScore;
+                        this.spawnFloater("Awful!", Color.Red);
+                        this.meterValue = Math.max(0, this.meterValue - 6);
+                        this.score += baseScore * this.multiplier;
                     }
                 }
+                this.meterValue = Math.max(0, Math.min(100, this.meterValue));
+                this.greenActor.scale.x = this.meterValue / 100;
 
-                this.updateScoreAndMultiplierText();
-
-                // Check to see if we should transition out of the play state.
-                if (this.beats < 0 || this.missedBeats > maxMissedBeats) {
+                if (this.meterValue <= 0) {
+                    this.meterValue = 0;
                     this.transition(State.outro);
                 }
-                break;
-            case State.outro:
-                // TODO: should arm return to center?
 
+                this.bpmText[0].text = `${this.bpmCurrent.toFixed(1)} bpm`;
+                this.scoreText[0].text = String(this.score).padStart(6, "0");
+                this.multiplierText[0].text = String(this.multiplier).padStart(3, "0");
+                break;
+
+            case State.outro:
                 this.time -= delta;
                 if (this.time <= 0) {
                     this.transition(State.result);
                 }
                 break;
+
             case State.done:
                 if (this.game.wasAnyKeyPressed()) {
                     this.transition(State.return);
@@ -452,139 +317,99 @@ export class Performance extends Scene {
                 break;
         }
 
-        // Smoothly move towards target
-        const lerpSpeed = 5;
-        this.meterValue += (this.targetMeterValue - this.meterValue) * (lerpSpeed * delta / 1000);
+        // clamp + update bar
+        //this.meterValue = Math.max(0, Math.min(100, this.meterValue));
+        //this.greenActor.scale = new Vector(this.meterValue / 100, 1);
 
-        // Clamp
-        this.meterValue = Math.max(-100, Math.min(100, this.meterValue));
-
-        // Scale relative to half width
-        const fill = this.meterValue / 100; // -1..1
-
-        if (fill >= 0) {
-            this.greenActor.scale = new Vector(fill, 1);
-            this.redActor.scale   = new Vector(0.001, 1);
-        } else {
-            this.greenActor.scale = new Vector(0.001, 1);
-            this.redActor.scale   = new Vector(-fill, 1);
-        }
-
-        // BPM change
-        if (this.meterValue >= 95) {
-            this.game.bpm = Math.min(300, this.game.bpm + 10);
-            this.bpmText[0].text = `${this.game.bpm}bpm`;
-            this.targetMeterValue = 0;
-            this.meterValue = 0;
-        } else if (this.meterValue <= -95) {
-            this.game.bpm = Math.max(40, this.game.bpm - 10);
-            this.bpmText[0].text = `${this.game.bpm}bpm`;
-            this.targetMeterValue = 0;
-            this.meterValue = 0;
-        }
-
-
-    }
-
-    private updateScoreAndMultiplierText(): void {
-        this.scoreText[0].text = String(this.score).padStart(6, "0");
-        this.multiplierText[0].text = String(this.multiplier).padStart(3, "0");
     }
 
     private transition(state: State): void {
         this.state = state;
-
         switch (state) {
-            case State.countIn:
-                this.timer.start();
-
-                if (this.showInstructions) {
-                    void this.instructionFadeIn.play();
-                }
-                break;
             case State.play:
-                void this.messageFadeOut.play();
+                this.messageText[0].opacity = 0;
                 break;
             case State.outro:
-                this.messageText[0].text =
-                    this.missedBeats <= maxMissedBeats ? "Great!" : "You Suck";
-                void this.messageFadeIn.play();
-
-                this.starBlankFadeIn.play().catch(reason => void console.error("", reason));
-
+                this.messageText[0].text = "Game Over";
+                this.messageText[0].opacity = 1;
                 this.time = outroDuration;
-
-                (this.missedBeats <= maxMissedBeats
-                    ? resources.performanceCheer
-                    : resources.performanceBoo
-                )
-                    .play()
-                    .then(
-                        () => void 0,
-                        reason => void console.error("", reason)
-                    );
+                resources.performanceBoo.play().catch(console.error);
                 break;
             case State.result:
-                this.calculateFinalStars();
-                if (this.finalStars > 0) {
-                    resources.performanceStar1.play().then(
-                        () => {},
-                        reason => void console.error("", reason)
-                    );
-                    this.star1FadeIn.play().catch(reason => void console.error("", reason));
-                } else {
-                    this.transition(State.done);
-                }
+                this.transition(State.done);
                 break;
             case State.return:
-                this.game.stars = this.finalStars;
                 this.game.engine.goToScene("performance");
                 break;
         }
     }
 
-    private calculateFinalStars(): void {
-        if (this.missedBeats > maxMissedBeats) {
-            this.finalStars = 0;
-        } else if (this.score > scoreThreshold3Star) {
-            // TODO Really? Not >=?
-            this.finalStars = 3;
-        } else if (this.score > scoreThreshold2Star) {
-            // TODO Really? Not >=?
-            this.finalStars = 2;
-        } else if (this.score > scoreThreshold1Star) {
-            // TODO Really? Not >=?
-            this.finalStars = 1;
-        } else {
-            this.finalStars = 0;
-        }
-    }
-
-    private  createTriggerLine(rotation: number): Actor {
-        const line = new Actor({
-            pos: new Vector(this.game.width / 2, this.game.height / 2),
-            anchor: new Vector(0.5, 1),        // bottom so it points away from center
-            width: 4,
-            height: this.game.height / 2,
-            color: Color.Red
-        });
-
-        line.rotation = rotation;            // draw exactly at arm rotation
-        line.graphics.opacity = 0.7;
-        line.actions.delay(500).callMethod(() => {
-            line.kill();
-        });
-        return line;
-    }
-
     private angleDistance(a: number, b: number): number {
         let diff = a - b;
-        while (diff < -Math.PI) {
-            diff += Math.PI * 2;
-        }
-        while (diff > Math.PI)  {
-            diff -= Math.PI * 2;
-        }
+        while (diff < -Math.PI) {diff += Math.PI * 2}
+        while (diff > Math.PI) {diff -= Math.PI * 2}
         return Math.abs(diff);
     }
+
+    private createZoneArc(innerRadius: number, outerRadius: number, angleMinDeg: number, angleMaxDeg: number, color: Color): Actor {
+        const points: Vector[] = [];
+        const segments = 64;
+
+        const angleMin = angleMinDeg * Math.PI / 180;
+        const angleMax = angleMaxDeg * Math.PI / 180;
+
+        // Shift everything by -90° so 0° = up, matching arm rotation
+        const offset = -Math.PI / 2;
+
+        // outer edge (angleMin → angleMax)
+        for (let i = 0; i <= segments; i++) {
+            const t = angleMin + (i / segments) * (angleMax - angleMin);
+            const x = Math.cos(t + offset) * outerRadius;
+            const y = Math.sin(t + offset) * outerRadius;
+            points.push(new Vector(x, y));
+        }
+
+        // inner edge (reverse)
+        for (let i = segments; i >= 0; i--) {
+            const t = angleMin + (i / segments) * (angleMax - angleMin);
+            const x = Math.cos(t + offset) * innerRadius;
+            const y = Math.sin(t + offset) * innerRadius;
+            points.push(new Vector(x, y));
+        }
+
+        const poly = new Polygon({ points, color });
+        const actor = new Actor({ anchor: new Vector(0.5, 0.5) });
+        actor.graphics.use(poly);
+        return actor;
+    }
+
+
+
+
+
+    private normalizeAngle(angle: number): number {
+        while (angle <= -Math.PI) {angle += Math.PI * 2}
+        while (angle > Math.PI) {angle -= Math.PI * 2}
+        return angle;
+    }
+
+    private spawnFloater(text: string, color: Color): void {
+        let floater = this.floaterPool.pop();
+
+        if (!floater) {
+            floater = new Floater(text, color);
+        } else {
+            floater.reset(text, color); // we'll add reset() next
+        }
+
+        this.add(floater);
+        floater.on('kill', () => {
+            this.floaterPool.push(floater!);
+        });
+    }
+
+
+
+
+
 }

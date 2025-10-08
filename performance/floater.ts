@@ -25,6 +25,14 @@ export default class Floater extends Actor {
         this.graphics.add(this.textGraphic);
     }
 
+    public reset(text: string, color: Color): void {
+        this.textGraphic.text = text;
+        this.textGraphic.color = color;
+        this.textGraphic.opacity = 1;
+        this.vel = Vector.fromAngle(Math.random() * Math.PI * 2).scale(speed);
+        this.pos = new Vector(320, 240);
+    }
+
     public override update(engine: Engine, delta: number): void {
         super.update(engine, delta);
 
