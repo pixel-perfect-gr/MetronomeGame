@@ -1,5 +1,5 @@
 import type {Engine} from "excalibur";
-import {Actor, Color, Scene, TextAlign, Vector, ScreenElement} from "excalibur";
+import {Actor, Color, Scene, TextAlign, Vector} from "excalibur";
 import type Game from "../game.js";
 import Timer from "../metronome/timer.js";
 import resources from "../resources.js";
