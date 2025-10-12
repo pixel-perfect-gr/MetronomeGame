@@ -9,19 +9,21 @@ export interface TextOptions {
     readonly opacity?: number | undefined;
     readonly outlineColor?: Color | undefined;
     readonly shadowBlurRadius?: number;
+    readonly outlineWidth?: number;
+    readonly fontFamily?: string | undefined;
 }
 
 export function textGraphic(options: TextOptions): Text {
     return new Text({
         origin: Vector.Zero,
         text: options.text ?? "",
-        fontFamily: "Strait",
+        fontFamily: "IQOSGreek-Regular",
         fontSize: options.fontSize ?? 48,
         textAlign: options.textAlign ?? TextAlign.Left,
         baseAlign: BaseAlign.Top,
         color: options.color ?? Color.White,
         outlineColor: options.outlineColor ?? Color.fromRGB(0, 0, 0, 0.5),
-        outlineWidth: 1,
+        outlineWidth: options.outlineWidth ?? 1,
         shadowColor: Color.Black,
         shadowBlurRadius: options.shadowBlurRadius ?? 2,
         ...(options.opacity == null ? {} : {opacity: options.opacity})

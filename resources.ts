@@ -49,15 +49,24 @@ import titleBody from "./title/body.png";
 import titleLogo from "./title/logo.png";
 import titleSmallArm from "./title/small-arm.png";
 
+import p_base from "./NewImages/BASE.png";
+import p_bg from "./NewImages/BG1.png";
+import p_m_bg from "./NewImages/M_BG.png";
+import p_metronome from "./NewImages/METRONOME.png";
+import p_range from "./NewImages/RANGE_.png";
+import p_bpm from "./NewImages/BPM.png";
+import p_score from "./NewImages/SCORE.png";
+import p_streak from "./NewImages/STREAK.png";
+
 const resources = {
-    font22px: new FontLoader("Strait", 22),
-    font24px: new FontLoader("Strait", 24),
-    font28px: new FontLoader("Strait", 28),
-    font32px: new FontLoader("Strait", 32),
-    font36px: new FontLoader("Strait", 36),
-    font48px: new FontLoader("Strait", 48),
-    font60px: new FontLoader("Strait", 60),
-    font72px: new FontLoader("Strait", 72),
+    font22px: new FontLoader("IQOSGreek-Regular", 22),
+    font24px: new FontLoader("IQOSGreek-Regular", 24),
+    font28px: new FontLoader("IQOSGreek-Regular", 28),
+    font32px: new FontLoader("IQOSGreek-Regular", 32),
+    font36px: new FontLoader("IQOSGreek-Regular", 36),
+    font48px: new FontLoader("IQOSGreek-Regular", 48),
+    font60px: new FontLoader("IQOSGreek-Regular", 60),
+    font72px: new FontLoader("IQOSGreek-Regular", 72),
     menuBlip: new Sound(menuBlipOgg, menuBlipMp3),
     menuItemRatings: new ImageSource(menuItemRatings),
     menuItem: new ImageSource(menuItem),
@@ -87,7 +96,17 @@ const resources = {
     titleBigArm: new ImageSource(titleBigArm),
     titleBody: new ImageSource(titleBody),
     titleLogo: new ImageSource(titleLogo),
-    titleSmallArm: new ImageSource(titleSmallArm)
+    titleSmallArm: new ImageSource(titleSmallArm),
+
+    pp_base: new ImageSource(p_base),
+    pp_bg: new ImageSource(p_bg),
+    pp_m_bg: new ImageSource(p_m_bg),
+    pp_metronome: new ImageSource(p_metronome),
+    pp_range: new ImageSource(p_range),
+    pp_bpm: new ImageSource(p_bpm),
+    pp_score: new ImageSource(p_score),
+    pp_streak: new ImageSource(p_streak)
+
 };
 
 // Hack: Don't add cache-busting query parameters to requests.

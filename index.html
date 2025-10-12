@@ -1,29 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MetronomeGame</title>
+    <style>
+        :root, html, body { height: 100%; }
+        html, body { margin: 0; background: #000; }
+        /* Center everything on the screen */
+        body { display: grid; place-items: center; overflow: hidden; }
+
+        /* A centered “stage” with the game’s aspect ratio (1080x1920) */
+        #stage {
+            height: 100vh;              /* fill the (vertical) monitor height */
+            max-height: 100vh;
+            max-width: 100vw;
+            aspect-ratio: 1080 / 1920;  /* keep the game’s proportions */
+            display: grid;
+            place-items: center;
+        }
+
+        /* Let the canvas fill the stage without adding margins/scrollbars */
+        #game {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* 👇 Add your font here */
+        @font-face {
+            font-family: "IQOSGreek-Regular";
+            src: url("./IQOSGreek-Regular.otf") format("opentype");
+            font-weight: normal;
+            font-style: normal;
+        }
+    </style>
+</head>
+
 <body>
-<div id="stage">
-    <canvas id="game"></canvas>
-</div>
+    <div id="stage">
+        <canvas id="game"></canvas>
+    </div>
 </body>
-
-<style>
-    :root, html, body { height: 100%; }
-    html, body { margin: 0; background: #000; }
-    /* Center everything on the screen */
-    body { display: grid; place-items: center; overflow: hidden; }
-
-    /* A centered “stage” with the game’s aspect ratio (1080x1920) */
-    #stage {
-        height: 100vh;              /* fill the (vertical) monitor height */
-        max-height: 100vh;
-        max-width: 100vw;
-        aspect-ratio: 1080 / 1920;  /* keep the game’s proportions */
-        display: grid;
-        place-items: center;
-    }
-
-    /* Let the canvas fill the stage without adding margins/scrollbars */
-    #game {
-        width: 100%;
-        height: 100%;
-        display: block;
-    }
-</style>
+</html>

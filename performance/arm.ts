@@ -1,5 +1,5 @@
 import type {Engine} from "excalibur";
-import {Actor, Vector} from "excalibur";
+import {Actor} from "excalibur";
 import resources from "../resources.js";
 
 export default class Arm extends Actor {
@@ -8,13 +8,11 @@ export default class Arm extends Actor {
 
     public constructor() {
         super({
-            pos: new Vector(320, 420),
-            anchor: new Vector(33 / 69, 340 / 355),
-            width: 69,
-            height: 355
+            width: 118,
+            height: 1046
         });
 
-        this.graphics.add(resources.performanceArm.toSprite());
+        this.graphics.add(resources.pp_metronome.toSprite());
     }
 
     public miss(): void {

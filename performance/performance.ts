@@ -32,6 +32,8 @@ export class Performance extends Scene {
     private readonly lastHitLine?: Actor;
     private readonly pivot!: Actor;
 
+    private readonly newpivot!: Actor;
+
     private readonly lerpSpeed = 0.002;
     private beatsPerMs = 0;
     private drainRate = 0;
@@ -43,6 +45,10 @@ export class Performance extends Scene {
     private meterValue = 100;
     private readonly greenActor: Actor;
     private readonly meterFillGreen: Rectangle;
+    private readonly startColor = Color.fromHex("#4fd51a");
+    private readonly endColor = Color.fromHex("#ff0449");
+
+    private readonly Floaters = new Vector(this.game.width / 2, this.game.height - 200);
 
     // BPM handling
     private bpmTarget = 30;
@@ -59,26 +65,42 @@ export class Performance extends Scene {
         fontSize: 36
     });
     private readonly bpmText = textActor({
-        pos: new Vector(22, 58),
+        pos: new Vector(150, 105),
         color: Color.fromHex("eeeeee"),
-        fontSize: 24
+        textAlign: TextAlign.Center,
+        fontSize: 62
+    });
+    private readonly bpmTextStatic = new Actor({
+        pos: new Vector(150, 70),
+        anchor: new Vector(0.5, 0.5)
     });
     private readonly scoreText = textActor({
-        pos: new Vector(this.game.width - 20, 20),
-        textAlign: TextAlign.Right,
-        fontSize: 36,
+        pos: new Vector(this.game.width / 2, 105),
+        text: "SCORE",
+        textAlign: TextAlign.Center,
+        fontSize: 62,
         color: Color.White
     });
+    private readonly scoreTextStatic = new Actor({
+        pos: new Vector(this.game.width / 2, 70),
+        anchor: new Vector(0.5, 0.5)
+    });
     private readonly multiplierText = textActor({
-        pos: new Vector(618, 58),
-        fontSize: 28,
-        textAlign: TextAlign.Right
+        pos: new Vector(this.game.width - 150, 105),
+        fontSize: 62,
+        textAlign: TextAlign.Center
+    });
+    private readonly multiplierTextStatic = new Actor({
+        pos: new Vector(this.game.width - 150, 70),
+        anchor: new Vector(0.5, 0.5)
     });
     private readonly messageText = textActor({
         text: "Press the button to Start",
-        pos: new Vector(this.game.width / 2, this.game.height / 2),
+        pos: new Vector(this.game.width / 2, this.game.height - 250),
         color: Color.fromHex("eeeeee"),
-        fontSize: 72,
+        outlineColor: Color.fromHex("#8d2391"),
+        outlineWidth: 4,
+        fontSize: 150,
         textAlign: TextAlign.Center
     });
 
@@ -95,16 +117,67 @@ export class Performance extends Scene {
         super();
         this.timer = new Timer(0);
 
+        //Background Color
+        const bg = new Actor({
+            pos: new Vector(this.game.width / 2, this.game.height / 2),
+            anchor: new Vector(0.5, 0.5)
+        });
+
+        // apply your resource sprite
+        bg.graphics.use(resources.pp_bg.toSprite());
+        bg.graphics.opacity = 0.5;
+
+        // make sure it sits *behind* everything
+        bg.z = -100;
+
+        //Horizontal box
+        const bg2 = new Actor({
+            pos: new Vector(this.game.width / 2, this.game.height),
+            anchor: new Vector(0.5, 1)
+        })
+        bg2.graphics.use(resources.pp_base.toSprite());
+        bg2.z = 50;
+
+        //MetronomeBackground
+        const bg3 = new Actor({
+            pos: new Vector(this.game.width / 2, this.game.height / 2 + 100),
+            scale: new Vector(1.1, 1.15),
+            anchor: new Vector(0.5, 0.5)
+        })
+        bg3.graphics.use(resources.pp_m_bg.toSprite());
+
+        //Range
+        const bg4 = new Actor({
+            pos: new Vector(this.game.width / 2, this.game.height / 2),
+            anchor: new Vector(0.5, 0.5)
+        })
+        bg4.graphics.use(resources.pp_range.toSprite());
+
+        //this.add(bg);
+        this.add(bg2);
+        this.add(bg3);
+        this.add(bg4);
+
+        this.scoreTextStatic.graphics.use(resources.pp_score.toSprite());
+        this.bpmTextStatic.graphics.use(resources.pp_bpm.toSprite());
+        this.multiplierTextStatic.graphics.use(resources.pp_streak.toSprite());
+        this.add(this.multiplierTextStatic);
+        this.add(this.bpmTextStatic);
+        this.add(this.scoreTextStatic);
+
+
+
         // ====== BAR SETUP ======
-        const barWidth  = 400;
-        const barHeight = 30;
-        const barPos    = new Vector(this.game.width / 2, this.game.height * 0.1);
+
+        const barWidth  = this.game.width - 160;
+        const barHeight = 70;
+        const barPos    = new Vector(this.game.width / 2, 259);
 
         const meterBg = new Actor({ pos: barPos, anchor: new Vector(0.5, 0.5) });
-        meterBg.graphics.use(new Rectangle({ width: barWidth, height: barHeight, color: Color.fromHex("#333333") }));
+        meterBg.graphics.use(new Rectangle({ width: barWidth, height: barHeight, color: Color.fromHex("#6b3cbd") }));
         this.add(meterBg);
 
-        this.meterFillGreen = new Rectangle({ width: barWidth, height: barHeight, color: Color.Green });
+        this.meterFillGreen = new Rectangle({ width: barWidth, height: barHeight, color: Color.fromHex("#4fd51a") });
         this.greenActor = new Actor({ pos: barPos.clone(), anchor: new Vector(0.5, 0.5) });
         this.greenActor.graphics.use(this.meterFillGreen);
         this.add(this.greenActor);
@@ -117,6 +190,7 @@ export class Performance extends Scene {
         this.add(this.bpmText[1]);
         this.add(this.scoreText[1]);
         this.add(this.multiplierText[1]);
+        this.messageText[1].z = 51;
         this.add(this.messageText[1]);
 
         this.pivot = new Actor({
@@ -125,25 +199,15 @@ export class Performance extends Scene {
         });
         this.add(this.pivot);
 
+        this.newpivot = new Actor({
+            pos: new Vector(this.game.width / 2, this.game.height - 250),
+            anchor: new Vector(0.5, 0.5)
+        })
+
         // Ensure the arm rotates around its own anchor at the pivot
         this.arm.anchor = new Vector(0.5, 1); // bottom-center pivot (adjust to your sprite)
         this.arm.pos = Vector.Zero;           // relative to pivot
-        this.pivot.addChild(this.arm);
-
-        // --- Static zone arcs (added once, not every activation)
-        const center = Vector.Zero;
-
-        const arcBad = this.createZoneArc(270, 370, -50, 50, Color.Red);
-        arcBad.pos = center; this.pivot.addChild(arcBad); arcBad.anchor = new Vector(0.5, 1);
-
-        const arcGood = this.createZoneArc(270, 370, -30, 30, Color.Gray);
-        arcGood.pos = center; this.pivot.addChild(arcGood); arcGood.anchor = new Vector(0.5, 1);
-
-        const arcNice = this.createZoneArc(270, 370, -20, 20, Color.Yellow);
-        arcNice.pos = center; this.pivot.addChild(arcNice); arcNice.anchor = new Vector(0.5, 1);
-
-        const arcPerfect = this.createZoneArc(270, 370, -10, 10, Color.Green);
-        arcPerfect.pos = center; this.pivot.addChild(arcPerfect); arcPerfect.anchor = new Vector(0.5, 1);
+        this.newpivot.addChild(this.arm);
 
         this.arm.z = 10; // ensure arm is drawn above arcs
 
@@ -165,13 +229,14 @@ export class Performance extends Scene {
         this.arm.reset();
 
         this.tempoText[0].text = this.game.tempo;
-        this.bpmText[0].text = `30 bpm`;
-        this.scoreText[0].text = "000000";
-        this.multiplierText[0].text = "000";
+        this.bpmText[0].text = `30.0`;
+        this.scoreText[0].text = "000";
+        this.multiplierText[0].text = "00";
         this.state = State.intro;
         this.time = introDuration;
 
         this.meterValue = 100;
+        this.meterFillGreen.color = Color.fromHex("#4fd51a");
         this.greenActor.scale = new Vector(1, 1);
 
         this.messageText[0].text = "Ready?";
@@ -242,10 +307,10 @@ export class Performance extends Scene {
                 this.beatsPerMs = this.bpmCurrent / 60000;
                 this.armPhase += this.beatsPerMs * delta;
                 this.armPhase %= 1;
-                this.arm.rotation = Math.sin(this.armPhase * Math.PI * 2) * (50 * Math.PI / 180);
+                this.arm.rotation = Math.sin(this.armPhase * Math.PI * 2) * (30 * Math.PI / 180);
 
                 // meter drains
-                this.drainRate = 5;
+                this.drainRate = 10;
                 this.meterValue -= this.drainRate * (delta / 1000);
 
 
@@ -272,20 +337,20 @@ export class Performance extends Scene {
 
 
                     if (distance1 < 0.1) {
-                        this.spawnFloater("Perfect!", Color.Green);
+                        this.spawnFloater("Perfect!", Color.Green, this.Floaters);
                         this.meterValue = Math.min(100, this.meterValue + 8);
                         this.score += baseScore * this.multiplier * 4;
                         resources.performanceChime.play().catch(console.error);
                     } else if (distance1 < 0.20) {
-                        this.spawnFloater("Nice", Color.fromHex("d3cd08"));
+                        this.spawnFloater("Nice", Color.fromHex("d3cd08"), this.Floaters);
                         this.meterValue = Math.min(100, this.meterValue + 5);
                         this.score += baseScore * this.multiplier * 3;
                     } else if (distance1 < 0.30) {
-                        this.spawnFloater("Good", Color.LightGray);
+                        this.spawnFloater("Good", Color.LightGray, this.Floaters);
                         this.meterValue = Math.min(100, this.meterValue + 3);
                         this.score += baseScore * this.multiplier * 2;
                     } else {
-                        this.spawnFloater("Awful!", Color.Red);
+                        this.spawnFloater("Awful!", Color.Red, this.Floaters);
                         this.meterValue = Math.max(0, this.meterValue - 6);
                         this.score += baseScore * this.multiplier;
                     }
@@ -293,13 +358,24 @@ export class Performance extends Scene {
                 this.meterValue = Math.max(0, Math.min(100, this.meterValue));
                 this.greenActor.scale.x = this.meterValue / 100;
 
+                // Interpolate color based on meter level (0..1)
+                const ratio = 1 - this.meterValue / 100; // 0 = full green, 1 = full red
+
+                // Linear interpolation between green and red
+                const r = this.startColor.r + (this.endColor.r - this.startColor.r) * ratio;
+                const g = this.startColor.g + (this.endColor.g - this.startColor.g) * ratio;
+                const b = this.startColor.b + (this.endColor.b - this.startColor.b) * ratio;
+
+                // Apply new color
+                this.meterFillGreen.color = new Color(r, g, b);
+
                 if (this.meterValue <= 0) {
                     this.meterValue = 0;
                     this.transition(State.outro);
                 }
 
-                this.bpmText[0].text = `${this.bpmCurrent.toFixed(1)} bpm`;
-                this.scoreText[0].text = String(this.score).padStart(6, "0");
+                this.bpmText[0].text = `${this.bpmCurrent.toFixed(1)}`;
+                this.scoreText[0].text = String(this.score).padStart(3, "0");
                 this.multiplierText[0].text = String(this.multiplier).padStart(3, "0");
                 break;
 
@@ -351,39 +427,6 @@ export class Performance extends Scene {
         return Math.abs(diff);
     }
 
-    private createZoneArc(innerRadius: number, outerRadius: number, angleMinDeg: number, angleMaxDeg: number, color: Color): Actor {
-        const points: Vector[] = [];
-        const segments = 64;
-
-        const angleMin = angleMinDeg * Math.PI / 180;
-        const angleMax = angleMaxDeg * Math.PI / 180;
-
-        // Shift everything by -90° so 0° = up, matching arm rotation
-        const offset = -Math.PI / 2;
-
-        // outer edge (angleMin → angleMax)
-        for (let i = 0; i <= segments; i++) {
-            const t = angleMin + (i / segments) * (angleMax - angleMin);
-            const x = Math.cos(t + offset) * outerRadius;
-            const y = Math.sin(t + offset) * outerRadius;
-            points.push(new Vector(x, y));
-        }
-
-        // inner edge (reverse)
-        for (let i = segments; i >= 0; i--) {
-            const t = angleMin + (i / segments) * (angleMax - angleMin);
-            const x = Math.cos(t + offset) * innerRadius;
-            const y = Math.sin(t + offset) * innerRadius;
-            points.push(new Vector(x, y));
-        }
-
-        const poly = new Polygon({ points, color });
-        const actor = new Actor({ anchor: new Vector(0.5, 0.5) });
-        actor.graphics.use(poly);
-        return actor;
-    }
-
-
 
 
 
@@ -393,13 +436,13 @@ export class Performance extends Scene {
         return angle;
     }
 
-    private spawnFloater(text: string, color: Color): void {
+    private spawnFloater(text: string, color: Color, position: Vector): void {
         let floater = this.floaterPool.pop();
 
         if (!floater) {
-            floater = new Floater(text, color);
+            floater = new Floater(text, color, position);
         } else {
-            floater.reset(text, color); // we'll add reset() next
+            floater.reset(text, color, position); // we'll add reset() next
         }
 
         this.add(floater);

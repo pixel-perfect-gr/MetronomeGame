@@ -1,5 +1,6 @@
 import {values} from "@softwareventures/dictionary";
 import {DisplayMode, Engine, Loader} from "excalibur";
+import * as ex from 'excalibur'
 import Music from "./music/music.js";
 import {Performance} from "./performance/performance.js";
 import resources from "./resources.js";
@@ -19,6 +20,7 @@ export default class Game {
         viewport: { width: this.width, height: this.height },
         resolution: { width: this.width, height: this.height },
         displayMode: DisplayMode.FitScreen,
+        backgroundColor: ex.Color.fromHex("#8d2391"),
         antialiasing: true,
         suppressHiDPIScaling: false,
         suppressPlayButton: true

@@ -3,6 +3,9 @@
   "compilerOptions": {
     "lib": ["es2017", "dom"],
     "skipLibCheck": true,
-    "types": ["webpack-env", "@softwareventures/webpack-config/webpack-config-runtime"]
-  }
+    "types": ["webpack-env",
+      "@softwareventures/webpack-config/webpack-config-runtime",
+      "./custom.d.ts"]
+  },
+  "include": ["**/*.ts", "custom.d.ts"]
 }
