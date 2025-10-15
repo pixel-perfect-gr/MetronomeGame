@@ -57,7 +57,7 @@ import p_range from "./NewImages/RANGE_.png";
 import p_bpm from "./NewImages/BPM.png";
 import p_score from "./NewImages/SCORE.png";
 import p_streak from "./NewImages/STREAK.png";
-import p_ready from "./NewImages/READY.png";
+import p_ready from "./NewImages/Ready.png";
 import p_gameOver from "./NewImages/Game_Over.png";
 import p_font from "./NewImages/letters_nobg_2.png";
 import p_Good from "./NewImages/Good.png";
