@@ -57,6 +57,13 @@ import p_range from "./NewImages/RANGE_.png";
 import p_bpm from "./NewImages/BPM.png";
 import p_score from "./NewImages/SCORE.png";
 import p_streak from "./NewImages/STREAK.png";
+import p_ready from "./NewImages/READY.png";
+import p_gameOver from "./NewImages/Game_Over.png";
+import p_font from "./NewImages/letters_nobg_2.png";
+import p_Good from "./NewImages/Good.png";
+import p_Miss from "./NewImages/Miss.png";
+import p_Nice from "./NewImages/Nice.png";
+import p_Perfect from "./NewImages/Perfect.png";
 
 const resources = {
     font22px: new FontLoader("IQOSGreek-Regular", 22),
@@ -105,7 +112,15 @@ const resources = {
     pp_range: new ImageSource(p_range),
     pp_bpm: new ImageSource(p_bpm),
     pp_score: new ImageSource(p_score),
-    pp_streak: new ImageSource(p_streak)
+    pp_streak: new ImageSource(p_streak),
+    pp_ready: new ImageSource(p_ready),
+    pp_gameover: new ImageSource(p_gameOver),
+    lettersFont: new ImageSource(p_font),
+    pp_good: new ImageSource(p_Good),
+    pp_miss: new ImageSource(p_Miss),
+    pp_nice: new ImageSource(p_Nice),
+    pp_perfect: new ImageSource(p_Perfect)
+
 
 };
 
@@ -117,3 +132,19 @@ Object.values(resources).forEach((resource: unknown) => {
 });
 
 export default resources;
+
+export async function fetchPlayerName(): Promise<string> {
+    try {
+        const response = await fetch("/playerName.txt", { cache: "no-store" });
+        if (!response.ok) throw new Error("Failed to fetch name");
+        const text = (await response.text()).trim();
+        return text || "Unknown";
+    } catch (err) {
+        console.error("Failed to load player name:", err);
+        return "Unknown";
+    }
+}
+
+
+
+

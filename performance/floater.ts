@@ -1,12 +1,11 @@
-import type Text from "@dcgw/excalibur-text";
-import {Engine, TextAlign} from "excalibur";
-import {Actor, Color, Vector} from "excalibur";
-import {textGraphic} from "../text-graphic.js";
+import { Engine, Actor, Color, Vector, Sprite } from "excalibur";
+import resources from "../resources.js"; // adjust path if needed
 
 const speed = 2 * 60;
 
 export default class Floater extends Actor {
-    private readonly textGraphic: Text;
+    private sprite: Sprite;
+    private currentOpacity = 1;
 
     public constructor(text: string, color: Color, position: Vector) {
         super({
@@ -15,36 +14,48 @@ export default class Floater extends Actor {
             z: 100,
         });
 
-        this.textGraphic = textGraphic({
-            text,
-            color,
-            textAlign: TextAlign.Center,
-            fontSize: 82,
-            outlineColor: Color.fromRGB(0, 0, 0, 0.6),
-            shadowBlurRadius: 3
-        });
-
-        this.graphics.add(this.textGraphic);
+        this.sprite = this.selectSprite(text);
+        this.sprite.scale = new Vector(1, 1);
+        this.sprite.opacity = 1;
+        this.graphics.use(this.sprite);
     }
 
     public reset(text: string, color: Color, position: Vector): void {
-        this.textGraphic.text = text;
-        this.textGraphic.color = color;
-        this.textGraphic.opacity = 1;
-        this.textGraphic.textAlign = TextAlign.Center;
-        this.z = 100;
-        this.vel = new Vector(0, -speed);
+        this.sprite = this.selectSprite(text);
+        //this.sprite.scale = new Vector(1.5, 1.5);
+        this.sprite.opacity = 1;
+        this.graphics.use(this.sprite);
+
+        this.currentOpacity = 1;
         this.pos = position;
+        this.sprite.scale = new Vector(1, 1);
+        this.vel = new Vector(0, -speed);
     }
 
     public override update(engine: Engine, delta: number): void {
         super.update(engine, delta);
 
-        const opacity = Math.max(0, this.textGraphic.opacity - (0.01 * delta * 60) / 1000);
-        this.textGraphic.opacity = opacity;
+        // fade out gradually
+        this.currentOpacity = Math.max(0, this.currentOpacity - (0.0015 * delta));
+        this.sprite.opacity = this.currentOpacity;
 
-        if (opacity <= 0) {
+        // kill when fully invisible
+        if (this.currentOpacity <= 0) {
             this.kill();
+        }
+    }
+
+    private selectSprite(text: string): Sprite {
+        switch (text.toLowerCase()) {
+            case "perfect!":
+                return resources.pp_perfect.toSprite();
+            case "nice":
+                return resources.pp_nice.toSprite();
+            case "good":
+                return resources.pp_good.toSprite();
+            case "awful!":
+            default:
+                return resources.pp_miss.toSprite();
         }
     }
 }

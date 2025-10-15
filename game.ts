@@ -1,6 +1,8 @@
 import {values} from "@softwareventures/dictionary";
 import {DisplayMode, Engine, Loader} from "excalibur";
 import * as ex from 'excalibur'
+import {LeaderboardScene} from "./leaderboard-scene.js";
+import {NameInputScene} from "./NameInputScene.js";
 import Music from "./music/music.js";
 import {Performance} from "./performance/performance.js";
 import resources from "./resources.js";
@@ -37,7 +39,9 @@ export default class Game {
                 this.engine.on("postframe", () => (this.anyKeyPressed = false));
 
                 this.engine.addScene("performance", new Performance(this));
-                this.engine.goToScene("performance");
+                this.engine.addScene("leaderboard", new LeaderboardScene(this));
+                this.engine.addScene("name-input", new NameInputScene());
+                this.engine.goToScene("name-input");
 
             },
             reason => void console.error("", reason)

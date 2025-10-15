@@ -1,35 +1,29 @@
 "use strict";
 
+const path = require("path");
 const baseConfig = require("@softwareventures/webpack-config");
 
-module.exports = baseConfig({
+const config = baseConfig({
     title: "Super Metronome Hero",
-    entry: "./index.ts", // ✅ your main file
+    entry: "./index.ts",
     vendor: "dcgw",
-
-    html: {
-        template: "index.html"
-    },
-
-    webpack: (webpackConfig) => {
-        // ✅ Ensure Webpack knows about fonts
-        webpackConfig.module.rules.push({
-            test: /\.(woff2?|eot|ttf|otf)$/i,
-            type: "asset/resource",
-            generator: {
-                filename: "fonts/[name][ext]"
-            }
-        });
-
-        // ✅ Also tell Webpack to handle TypeScript
-        webpackConfig.module.rules.push({
-            test: /\.tsx?$/,
-            use: "ts-loader",
-            exclude: /node_modules/
-        });
-
-        webpackConfig.resolve.extensions = [".ts", ".tsx", ".js"];
-
-        return webpackConfig;
-    }
+    html: { template: "index.html" },
+    output: { publicPath: "/" },
 });
+
+config.module = config.module || {};
+config.module.rules = config.module.rules || [];
+
+config.devServer = {
+    static: {
+        directory: path.resolve(__dirname, "public"), // ✅ serve public folder
+        publicPath: "/",
+        watch: true,
+    },
+    port: 8080,
+    client: { logging: "info" },
+};
+
+console.log("📂 Serving static files from:", path.resolve(__dirname, "public"));
+
+module.exports = config;

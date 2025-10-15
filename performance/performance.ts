@@ -1,15 +1,37 @@
-import type {Engine} from "excalibur";
-import { Actor, Color, Scene, TextAlign, Vector, Rectangle, Polygon } from "excalibur";
+import type { Engine } from "excalibur";
+import {SpriteSheet, SpriteFont, Actor, Color, Scene, TextAlign, Vector, Rectangle} from "excalibur";
+import * as ex from 'excalibur'
 import type Game from "../game.js";
 import resources from "../resources.js";
+import Leaderboard from "../leaderboard.js";
 import Timer from "../metronome/timer.js";
 import {textActor} from "../text-actor.js";
+import { fadeToScene } from "../utils/fadeToScene.js";
 import Floater from "./floater.js";
 import Arm from "./arm.js";
+
+
 
 const introDuration = 1;
 const outroDuration = 1;
 const baseScore = 5;
+
+
+const pSheet = SpriteSheet.fromImageSource({
+    image: resources.lettersFont,
+    grid: {
+        rows: 1,
+        columns: 11,
+        spriteWidth: 225,
+        spriteHeight: 300
+    }
+});
+const pFont = new SpriteFont({
+    alphabet: '0123456789.',
+    caseInsensitive: true,
+    spriteSheet: pSheet
+});
+
 
 enum State {
     intro = "intro",
@@ -41,6 +63,10 @@ export class Performance extends Scene {
     private musicAttached = false;
     private readonly floaterPool: Floater[] = [];
 
+    private transitioningToLeaderboard = false;
+    private idleTimer = 0;
+
+
 
     private meterValue = 100;
     private readonly greenActor: Actor;
@@ -59,50 +85,56 @@ export class Performance extends Scene {
     private armPhase = 0;
 
     // Texts
-    private readonly tempoText = textActor({
-        pos: new Vector(22, 24),
-        color: Color.fromHex("eeeeee"),
-        fontSize: 36
+    private readonly bpmSpriteText = new ex.Text({
+        text: '30.0',
+        font: pFont,
+        scale: new Vector(0.15, 0.15)
     });
-    private readonly bpmText = textActor({
+    private readonly bpmSpriteActor = new Actor({
         pos: new Vector(150, 105),
-        color: Color.fromHex("eeeeee"),
-        textAlign: TextAlign.Center,
-        fontSize: 62
+        anchor: new Vector(0.5, 0)
     });
     private readonly bpmTextStatic = new Actor({
         pos: new Vector(150, 70),
         anchor: new Vector(0.5, 0.5)
     });
-    private readonly scoreText = textActor({
+
+    private readonly scoreSpriteText = new ex.Text({
+        text: '000',
+        font: pFont,
+        scale: new Vector(0.15, 0.15)
+    });
+    private readonly scoreSpriteActor = new Actor({
         pos: new Vector(this.game.width / 2, 105),
-        text: "SCORE",
-        textAlign: TextAlign.Center,
-        fontSize: 62,
-        color: Color.White
+        anchor: new Vector(0.5, 0)
     });
     private readonly scoreTextStatic = new Actor({
         pos: new Vector(this.game.width / 2, 70),
         anchor: new Vector(0.5, 0.5)
     });
-    private readonly multiplierText = textActor({
-        pos: new Vector(this.game.width - 150, 105),
-        fontSize: 62,
-        textAlign: TextAlign.Center
+
+    private readonly multiplierSpriteText = new ex.Text({
+        text: '00',
+        font: pFont,
+        scale: new Vector(0.15, 0.15)
     });
+    private readonly multiplierSpriteActor = new Actor({
+        pos: new Vector(this.game.width - 150, 105),
+        anchor: new Vector(0.5, 0)
+    })
     private readonly multiplierTextStatic = new Actor({
         pos: new Vector(this.game.width - 150, 70),
         anchor: new Vector(0.5, 0.5)
     });
-    private readonly messageText = textActor({
-        text: "Press the button to Start",
+
+    private readonly readyText = new Actor({
         pos: new Vector(this.game.width / 2, this.game.height - 250),
-        color: Color.fromHex("eeeeee"),
-        outlineColor: Color.fromHex("#8d2391"),
-        outlineWidth: 4,
-        fontSize: 150,
-        textAlign: TextAlign.Center
-    });
+        anchor: new Vector(0.5, 0)
+    })
+    private readonly gameoverText = new Actor({
+        pos: new Vector(this.game.width / 2, this.game.height - 250),
+        anchor: new Vector(0.5, 0)
+    })
 
     private readonly arm = new Arm();
 
@@ -165,6 +197,19 @@ export class Performance extends Scene {
         this.add(this.bpmTextStatic);
         this.add(this.scoreTextStatic);
 
+        this.bpmSpriteActor.graphics.use(this.bpmSpriteText);
+        this.add(this.bpmSpriteActor);
+        this.scoreSpriteActor.graphics.use(this.scoreSpriteText);
+        this.add(this.scoreSpriteActor);
+        this.multiplierSpriteActor.graphics.use(this.multiplierSpriteText);
+        this.add(this.multiplierSpriteActor);
+
+        this.readyText.graphics.use(resources.pp_ready.toSprite());
+        this.gameoverText.graphics.use(resources.pp_gameover.toSprite());
+        this.readyText.z = 51;
+        this.gameoverText.z = 51;
+        this.add(this.readyText);
+        this.add(this.gameoverText);
 
 
         // ====== BAR SETUP ======
@@ -183,15 +228,8 @@ export class Performance extends Scene {
         this.add(this.greenActor);
 
         this.add(this.arm);
-        //this.arm.pos = new Vector(this.game.width / 2, this.game.height / 2);
-
-        // texts
-        this.add(this.tempoText[1]);
-        this.add(this.bpmText[1]);
-        this.add(this.scoreText[1]);
-        this.add(this.multiplierText[1]);
-        this.messageText[1].z = 51;
-        this.add(this.messageText[1]);
+        //this.messageText[1].z = 51;
+        //this.add(this.messageText[1]);
 
         this.pivot = new Actor({
             pos: new Vector(this.game.width / 2, this.game.height / 2),
@@ -220,6 +258,7 @@ export class Performance extends Scene {
             this.add(this.game.music);
             this.musicAttached = true;
         }
+        this.transitioningToLeaderboard = false;
         this.game.music.stop();
         this.game.music.stop();
 
@@ -228,10 +267,10 @@ export class Performance extends Scene {
         this.timer.reset(30);
         this.arm.reset();
 
-        this.tempoText[0].text = this.game.tempo;
-        this.bpmText[0].text = `30.0`;
-        this.scoreText[0].text = "000";
-        this.multiplierText[0].text = "00";
+        //this.tempoText[0].text = this.game.tempo;
+        //this.bpmText[0].text = `30.0`;
+        //this.scoreText[0].text = "000";
+        //this.multiplierText[0].text = "00";
         this.state = State.intro;
         this.time = introDuration;
 
@@ -239,41 +278,46 @@ export class Performance extends Scene {
         this.meterFillGreen.color = Color.fromHex("#4fd51a");
         this.greenActor.scale = new Vector(1, 1);
 
-        this.messageText[0].text = "Ready?";
-        this.messageText[0].opacity = 1;
+        //this.messageText[0].text = "Ready?";
+        //this.messageText[0].opacity = 1;
+        this.readyText.graphics.opacity = 1;
+        this.gameoverText.graphics.opacity = 0;
 
         this.bpmTarget = 30;
         this.bpmCurrent = 30;
         this.armPhase = 0;
         this.bpmTimer = 0;
+        this.idleTimer = 0;
 
         resources.performanceReady.play().catch(console.error);
     }
 
     public override onDeactivate(): void {
-        // Stop any playing music or sounds
         this.game.music.stop();
 
-        // Kill all transient actors (Floaters, debug, etc.)
-        for (const a of this.actors) {
-            if (a instanceof Floater) {a.kill()}
+        // Kill transient actors safely
+        for (const a of [...this.actors]) {
+            if (a instanceof Floater) a.kill();
         }
 
-        // Clear timers, if any
+        // Reset timers
         this.timer.reset(0);
 
-        // Remove any references to help GC
-        this.actors.forEach(actor => {
-            actor.events.clear(); // removes lingering event listeners
-        });
+        // Clear lingering listeners
+        for (const actor of this.actors) {
+            actor.events.clear();
+        }
+        this.idleTimer = 0;
 
         console.log("[Performance] Scene deactivated and cleaned.");
     }
 
 
+
     public override update(engine: Engine, delta: number): void {
         super.update(engine, delta);
         this.timer.update(delta);
+        //console.log("Current state:", this.state);
 
         switch (this.state) {
             case State.intro:
@@ -292,9 +336,9 @@ export class Performance extends Scene {
                 break;
 
             case State.play:
-                // κάθε 8s ανεβάζουμε target BPM
+                // κάθε 5s ανεβάζουμε target BPM
                 this.bpmTimer += delta;
-                if (this.bpmTimer >= 8000) {
+                if (this.bpmTimer >= 5000) {
                     this.bpmTarget = Math.min(150, this.bpmTarget + 5);
                     this.bpmTimer = 0;
                 }
@@ -333,8 +377,9 @@ export class Performance extends Scene {
 
                     if (this.lastHitLine != null){
                         this.lastHitLine.kill();
-                    } 
+                    }
 
+                    this.showHitLine(this.arm.rotation);
 
                     if (distance1 < 0.1) {
                         this.spawnFloater("Perfect!", Color.Green, this.Floaters);
@@ -347,7 +392,6 @@ export class Performance extends Scene {
                         this.score += baseScore * this.multiplier * 3;
                     } else if (distance1 < 0.30) {
                         this.spawnFloater("Good", Color.LightGray, this.Floaters);
-                        this.meterValue = Math.min(100, this.meterValue + 3);
                         this.score += baseScore * this.multiplier * 2;
                     } else {
                         this.spawnFloater("Awful!", Color.Red, this.Floaters);
@@ -374,9 +418,9 @@ export class Performance extends Scene {
                     this.transition(State.outro);
                 }
 
-                this.bpmText[0].text = `${this.bpmCurrent.toFixed(1)}`;
-                this.scoreText[0].text = String(this.score).padStart(3, "0");
-                this.multiplierText[0].text = String(this.multiplier).padStart(3, "0");
+                this.bpmSpriteText.text = `${this.bpmCurrent.toFixed(1)}`;
+                this.scoreSpriteText.text = String(this.score).padStart(3, "0");
+                this.multiplierSpriteText.text = String(this.multiplier).padStart(2, "0");
                 break;
 
             case State.outro:
@@ -393,9 +437,17 @@ export class Performance extends Scene {
                 break;
         }
 
-        // clamp + update bar
-        //this.meterValue = Math.max(0, Math.min(100, this.meterValue));
-        //this.greenActor.scale = new Vector(this.meterValue / 100, 1);
+        if ((this.state === State.countIn || this.state === State.done) && !this.game.wasAnyKeyPressed()) {
+            this.idleTimer = (this.idleTimer || 0) + delta;
+            //console.log("Idle timer:", this.idleTimer.toFixed(0), "ms");
+
+            if (this.idleTimer > 10000 && !this.transitioningToLeaderboard) { // 10 seconds idle
+                this.transitioningToLeaderboard = true;
+                fadeToScene(engine, "leaderboard", 1000);
+            }
+        } else {
+            this.idleTimer = 0;
+        }
 
     }
 
@@ -403,12 +455,21 @@ export class Performance extends Scene {
         this.state = state;
         switch (state) {
             case State.play:
-                this.messageText[0].opacity = 0;
+                this.readyText.graphics.opacity = 0;
                 break;
             case State.outro:
-                this.messageText[0].text = "Game Over";
-                this.messageText[0].opacity = 1;
+                this.gameoverText.graphics.opacity = 1;
                 this.time = outroDuration;
+                // save score to leaderboard
+                void (async () => {
+                    try {
+                        const playerName = localStorage.getItem("playerName") || "Unknown";
+                        Leaderboard.add(playerName, this.score);
+                        console.log(`[Performance] Saved score ${this.score} for ${playerName}`);
+                    } catch (err) {
+                        console.error("[Performance] Failed to update leaderboard:", err);
+                    }
+                })();
                 resources.performanceBoo.play().catch(console.error);
                 break;
             case State.result:
@@ -439,7 +500,7 @@ export class Performance extends Scene {
     private spawnFloater(text: string, color: Color, position: Vector): void {
         let floater = this.floaterPool.pop();
 
-        if (!floater) {
+        if (floater == null) {
             floater = new Floater(text, color, position);
         } else {
             floater.reset(text, color, position); // we'll add reset() next
@@ -447,12 +508,38 @@ export class Performance extends Scene {
 
         this.add(floater);
         floater.on('kill', () => {
-            this.floaterPool.push(floater!);
+            this.floaterPool.push(floater);
         });
     }
 
+    private showHitLine(angle: number): void {
+        const lineLength = 900; // how far out from center
+        const lineThickness = 3; // line width
 
+        // Create a simple vertical rectangle as the line
+        const line = new ex.Actor({
+            pos: Vector.Zero, // pivot center
+            anchor: new ex.Vector(0.5, 1),
+            rotation: angle, // rotate to match arm angle
+            z: 20
+        });
 
+        const rect = new ex.Rectangle({
+            width: lineThickness,
+            height: lineLength,
+            color: ex.Color.White
+        });
 
+        this.newpivot.addChild(line);
 
+        line.graphics.use(rect);
+
+        // Add to scene
+        this.add(line);
+
+        // Fade out + remove automatically
+        line.actions
+            .fade(0, 500)   // fade out over 300ms
+            .callMethod(() => line.kill());
+    }
 }
