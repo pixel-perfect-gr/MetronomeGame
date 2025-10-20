@@ -4,6 +4,8 @@ import pkg from "./package.json";
 
 console.log("Super Metronome Hero v" + pkg.version);
 
+
+
 domready(() => {
     const game = new Game();
     const engine = game.engine;
@@ -15,6 +17,8 @@ domready(() => {
     if (engine.canvas.style.imageRendering === "") {
         engine.canvas.style.imageRendering = "crisp-edges";
     }
+
+
 
     const scale = (): void => {
         const dpr = Math.max(1, Math.min(4, window.devicePixelRatio || 1));
@@ -131,6 +135,8 @@ domready(() => {
     window.addEventListener("mousemove", onMouseMove, true);
     window.addEventListener("focus", onFocus, true);
     window.addEventListener("blur", onBlur, true);
+
+
 
     game.start();
     document.documentElement.style.background = '#000';

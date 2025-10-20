@@ -64,6 +64,12 @@ import p_Good from "./NewImages/Good.png";
 import p_Miss from "./NewImages/Miss.png";
 import p_Nice from "./NewImages/Nice.png";
 import p_Perfect from "./NewImages/Perfect.png";
+import p_leaderboard_bg from "./NewImages/Leaderboard_bg.png";
+import p_leaderboard from "./NewImages/Leaderboard.png";
+import p_iqos_logo from "./NewImages/iqos_logo.png";
+import p_position from "./NewImages/position.png";
+import p_name from "./NewImages/name.png";
+import p_scoree from "./NewImages/scoree.png";
 
 const resources = {
     font22px: new FontLoader("IQOSGreek-Regular", 22),
@@ -119,7 +125,14 @@ const resources = {
     pp_good: new ImageSource(p_Good),
     pp_miss: new ImageSource(p_Miss),
     pp_nice: new ImageSource(p_Nice),
-    pp_perfect: new ImageSource(p_Perfect)
+    pp_perfect: new ImageSource(p_Perfect),
+    pp_leaderboard_bg: new ImageSource(p_leaderboard_bg),
+    pp_leaderboard: new ImageSource(p_leaderboard),
+    pp_iqos_logo: new ImageSource(p_iqos_logo),
+    pp_position: new ImageSource(p_position),
+    pp_name: new ImageSource(p_name),
+    pp_scoree: new ImageSource(p_scoree),
+    geologicaFont: new FontLoader("Geologica", 32)
 
 
 };

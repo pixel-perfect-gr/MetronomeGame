@@ -431,17 +431,17 @@ export class Performance extends Scene {
                 break;
 
             case State.done:
-                if (this.game.wasAnyKeyPressed()) {
+                /*if (this.game.wasAnyKeyPressed()) {
                     this.transition(State.return);
-                }
+                }*/
                 break;
         }
 
-        if ((this.state === State.countIn || this.state === State.done) && !this.game.wasAnyKeyPressed()) {
+        if ((this.state === State.countIn || this.state === State.done)) {
             this.idleTimer = (this.idleTimer || 0) + delta;
             //console.log("Idle timer:", this.idleTimer.toFixed(0), "ms");
 
-            if (this.idleTimer > 10000 && !this.transitioningToLeaderboard) { // 10 seconds idle
+            if (this.idleTimer > 5000 && !this.transitioningToLeaderboard) { // 10 seconds idle
                 this.transitioningToLeaderboard = true;
                 fadeToScene(engine, "leaderboard", 1000);
             }
@@ -470,7 +470,7 @@ export class Performance extends Scene {
                         console.error("[Performance] Failed to update leaderboard:", err);
                     }
                 })();
-                resources.performanceBoo.play().catch(console.error);
+                resources.performanceCheer.play().catch(console.error);
                 break;
             case State.result:
                 this.transition(State.done);

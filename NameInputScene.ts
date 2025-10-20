@@ -51,8 +51,8 @@ export class NameInputScene extends Scene {
 
         // --- Prompt ---
         const prompt = new Actor({
-            pos: new Vector(engine.drawWidth / 2, engine.drawHeight / 2 - 100),
-            anchor: new Vector(0.5, 0.5),
+            pos: new Vector(engine.drawWidth /2 , engine.drawHeight / 2 - 100),
+            anchor: new Vector(0, 0.5),
         });
 
         prompt.graphics.use(
@@ -61,7 +61,7 @@ export class NameInputScene extends Scene {
                 color: Color.White,
                 font: new Font({
                     size: 48,
-                    family: "Arial",
+                    family: "Geologica",
                     textAlign: ex.TextAlign.Center,
                 }),
             })
@@ -112,7 +112,7 @@ export class NameInputScene extends Scene {
             color: Color.Yellow,
             font: new Font({
                 size: 64,
-                family: "Arial",
+                family: "Geologica",
                 textAlign: ex.TextAlign.Left,
             }),
         });
