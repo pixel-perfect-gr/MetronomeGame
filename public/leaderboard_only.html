@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Leaderboard</title>
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            margin: 0;
+            background: url("../NewImages/leaderboard_bg.png") no-repeat center center fixed; /* 👈 replace with your image path */
+            background-size: cover;
+            font-family: 'Geologica', sans-serif;
+            color: white;
+            display: flex;
+            justify-content: start;
+            align-items: flex-start;
+            flex-direction: column;
+            min-height: 100vh;
+            padding: 40px 0;
+        }
+
+        .container {
+            width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            text-align: center;
+            /*background: rgba(0, 0, 0, 0.35); /* subtle overlay for readability */
+            /*padding: 20px 40px;*/
+            border-radius: 16px;
+        }
+
+        .IqosLogo {
+            background: url("../NewImages/iqos_logo.png") no-repeat center center;
+            background-size: contain;   /* ensures it scales properly */
+            width: 300px;               /* adjust to your logo size */
+            height: 120px;
+            margin: 0 auto 20px auto;   /* center horizontally + spacing below */
+        }
+
+        .LeaderboardLogo {
+            background: url("../NewImages/leaderboard.png") no-repeat center center;
+            background-size: contain;   /* ensures it scales properly */
+            width: 550px;               /* adjust to your logo size */
+            height: 120px;
+            margin: 0 auto 20px auto;   /* center horizontally + spacing below */
+        }
+
+
+        .leaderboard {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #602bb1;
+            color: white;
+            padding: 18px 30px;
+            border-radius: 8px;
+            font-size: 22px;
+        }
+
+        .row.my-row {
+            background: #10d0d1;
+            color: #0b0033;
+            font-weight: 600;
+        }
+
+        .rank {
+            color: #00c7e6;
+            width: 60px;
+            text-align: left;
+        }
+
+        .name {
+            flex: 1;
+            text-align: left;
+        }
+
+        .score {
+            color: #00c7e6;
+            width: 80px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="IqosLogo"></div>
+    <div class="LeaderboardLogo"></div>
+    <div id="leaderboard" class="leaderboard"></div>
+</div>
+
+<script>
+    const API_URL = "http://localhost:3000/leaderboard";
+    const playerName = localStorage.getItem("playerName") || "Unknown";
+
+    async function loadLeaderboard() {
+        try {
+            const res = await fetch(API_URL);
+            const entries = await res.json();
+            const board = document.getElementById("leaderboard");
+            board.innerHTML = "";
+
+            const maxRows = 10;
+            const visible = entries.slice(0, maxRows);
+
+            visible.forEach((entry, i) => {
+                const row = document.createElement("div");
+                row.className = "row";
+                row.innerHTML = `
+            <div class="rank">${String(i + 1).padStart(2, "0")}.</div>
+            <div class="name">${entry.name}</div>
+            <div class="score">${entry.score}</div>
+          `;
+                board.appendChild(row);
+            });
+
+            // show player's row even if not in top 10
+            const playerIndex = entries.findIndex(e => e.name === playerName);
+            if (playerIndex !== -1) {
+                const me = entries[playerIndex];
+                const myRow = document.createElement("div");
+                myRow.className = "row my-row";
+                myRow.innerHTML = `
+            <div class="rank">${String(playerIndex + 1).padStart(2, "0")}.</div>
+            <div class="name">${me.name}</div>
+            <div class="score">${me.score}</div>
+          `;
+                board.appendChild(myRow);
+            }
+        } catch (err) {
+            console.error("❌ Failed to load leaderboard:", err);
+        }
+    }
+
+    loadLeaderboard();
+    setInterval(loadLeaderboard, 10000); // refresh every 10 seconds
+</script>
+</body>
+</html>

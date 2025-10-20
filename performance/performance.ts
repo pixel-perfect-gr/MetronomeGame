@@ -360,7 +360,7 @@ export class Performance extends Scene {
 
                 if (this.game.wasAnyKeyPressed()) {
                     const distance = this.angleDistance(this.arm.rotation, Performance.ARM_CENTER);
-                    const missed = distance > 0.5;
+                    const missed = distance > 0.45;
 
                     if (missed) {
                         this.meterValue -= 10;
@@ -384,19 +384,19 @@ export class Performance extends Scene {
                     if (distance1 < 0.1) {
                         this.spawnFloater("Perfect!", Color.Green, this.Floaters);
                         this.meterValue = Math.min(100, this.meterValue + 8);
-                        this.score += baseScore * this.multiplier * 4;
+                        this.score += baseScore * 4;
                         resources.performanceChime.play().catch(console.error);
                     } else if (distance1 < 0.20) {
                         this.spawnFloater("Nice", Color.fromHex("d3cd08"), this.Floaters);
                         this.meterValue = Math.min(100, this.meterValue + 5);
-                        this.score += baseScore * this.multiplier * 3;
+                        this.score += baseScore * 3;
                     } else if (distance1 < 0.30) {
                         this.spawnFloater("Good", Color.LightGray, this.Floaters);
-                        this.score += baseScore * this.multiplier * 2;
+                        this.score += baseScore * 2;
                     } else {
                         this.spawnFloater("Awful!", Color.Red, this.Floaters);
                         this.meterValue = Math.max(0, this.meterValue - 6);
-                        this.score += baseScore * this.multiplier;
+                        //this.score += baseScore * this.multiplier;
                     }
                 }
                 this.meterValue = Math.max(0, Math.min(100, this.meterValue));
