@@ -1,5 +1,5 @@
 import type { Engine } from "excalibur";
-import { Scene, Actor, Color, Text, Vector } from "excalibur";
+import { Scene, Actor, Color, Vector } from "excalibur";
 import * as ex from "excalibur";
 import resources from "./resources.js";
 import type Game from "./game.js";
@@ -175,6 +175,8 @@ export class LeaderboardScene extends Scene {
         // === Draw player's own row (below the visible ones) ===
         if (playerIndex !== -1) {
             const myEntry = entries[playerIndex];
+            if (!myEntry) return; // ✅ prevents "possibly undefined"
+
             // find where to place it: just below the last drawn entry
             const visibleCount = Math.min(entries.length, maxRows);
             const y = startY + (visibleCount + 1) * (rowHeight + rowSpacing) - 50;
@@ -208,16 +210,16 @@ export class LeaderboardScene extends Scene {
                 }),
             });
 
-            const nameActor = new Actor({
-                pos: new Vector(this.game.width / 2 - 350, y+30),
+            const textActor = new Actor({
+                pos: new Vector(this.game.width / 2 - 350, y),
                 anchor: new Vector(0, 0.5),
                 z: 5,
             });
-            nameActor.graphics.use(text);
-            this.add(nameActor);
+            textActor.graphics.use(text);
+            this.add(textActor);
 
             const scoreActor = new Actor({
-                pos: new Vector(this.game.width / 2 + 350, y+30),
+                pos: new Vector(this.game.width / 2 + 300, y),
                 anchor: new Vector(1, 0.5),
                 z: 5,
             });
