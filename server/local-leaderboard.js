@@ -19,13 +19,13 @@ await db.read();
 // --- Routes ----------------------------------------------------
 
 // Get all scores
-app.get("/leaderboard", async (_req, res) => {
+app.get("/api/leaderboard", async (_req, res) => {
     await db.read();
     res.json(db.data.leaderboard.sort((a, b) => b.score - a.score));
 });
 
 // Add a new score
-app.post("/leaderboard", async (req, res) => {
+app.post("/api/leaderboard", async (req, res) => {
     const { name, score } = req.body;
     if (!name || typeof score !== "number")
         return res.status(400).json({ error: "Invalid payload" });
