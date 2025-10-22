@@ -11,7 +11,7 @@
     <style>
         body {
             margin: 0;
-            background: url("../public/leaderboard_bg.png") no-repeat center center fixed; /* 👈 replace with your image path */
+            background: url("leaderboard_bg.png") no-repeat center center fixed; /* 👈 replace with your image path */
             background-size: cover;
             font-family: 'Geologica', sans-serif;
             color: white;
@@ -34,7 +34,7 @@
         }
 
         .IqosLogo {
-            background: url("../public/iqos_logo.png") no-repeat center center;
+            background: url("iqos_logo.png") no-repeat center center;
             background-size: contain;   /* ensures it scales properly */
             width: 300px;               /* adjust to your logo size */
             height: 120px;
@@ -42,7 +42,7 @@
         }
 
         .LeaderboardLogo {
-            background: url("../public/leaderboard.png") no-repeat center center;
+            background: url("leaderboard.png") no-repeat center center;
             background-size: contain;   /* ensures it scales properly */
             width: 550px;               /* adjust to your logo size */
             height: 120px;
@@ -127,17 +127,17 @@
 
             // show player's row even if not in top 10
             const playerIndex = entries.findIndex(e => e.name === playerName);
-            if (playerIndex !== -1) {
-                const me = entries[playerIndex];
-                const myRow = document.createElement("div");
-                myRow.className = "row my-row";
-                myRow.innerHTML = `
-            <div class="rank">${String(playerIndex + 1).padStart(2, "0")}.</div>
-            <div class="name">${me.name}</div>
-            <div class="score">${me.score}</div>
-          `;
-                board.appendChild(myRow);
-            }
+            //if (playerIndex !== -1) {
+            //    const me = entries[playerIndex];
+            //    const myRow = document.createElement("div");
+            //    myRow.className = "row my-row";
+            //    myRow.innerHTML = `
+            //<div class="rank">${String(playerIndex + 1).padStart(2, "0")}.</div>
+            //<div class="name">${me.name}</div>
+            //<div class="score">${me.score}</div>
+          //`;
+            //    board.appendChild(myRow);
+            //}
         } catch (err) {
             console.error("❌ Failed to load leaderboard:", err);
         }
