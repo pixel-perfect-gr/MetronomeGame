@@ -4,7 +4,7 @@ export interface LeaderboardEntry {
     date: string;
 }
 
-const API_URL = "http://localhost:3000";
+const API_URL = "https://metronome-game.pixel-perfect.gr/api";
 
 export default class Leaderboard {
     public static async getAll(): Promise<LeaderboardEntry[]> {
