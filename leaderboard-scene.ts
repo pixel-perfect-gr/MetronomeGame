@@ -211,7 +211,7 @@ export class LeaderboardScene extends Scene {
             });
 
             const textActor = new Actor({
-                pos: new Vector(this.game.width / 2 - 350, y),
+                pos: new Vector(this.game.width / 2 - 350, y+30),
                 anchor: new Vector(0, 0.5),
                 z: 5,
             });
@@ -219,7 +219,7 @@ export class LeaderboardScene extends Scene {
             this.add(textActor);
 
             const scoreActor = new Actor({
-                pos: new Vector(this.game.width / 2 + 300, y),
+                pos: new Vector(this.game.width / 2 + 350, y+30),
                 anchor: new Vector(1, 0.5),
                 z: 5,
             });
