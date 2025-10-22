@@ -4,16 +4,14 @@ import cors from "cors";
 import { Low } from "lowdb";
 import { JSONFile } from "lowdb/node";
 
-// Create the Express app
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// JSON file used as database
 const adapter = new JSONFile("leaderboard.json");
 const db = new Low(adapter, { leaderboard: [] });
 
-// Read existing data (or init)
+// Initialize DB
 await db.read();
 
 // --- Routes ----------------------------------------------------
@@ -34,6 +32,13 @@ app.post("/api/leaderboard", async (req, res) => {
     await db.write();
 
     res.json({ success: true });
+});
+
+// Clear all scores
+app.post("/api/leaderboard/clear", async (_req, res) => {
+    db.data.leaderboard = [];
+    await db.write();
+    res.json({ success: true, message: "Leaderboard cleared." });
 });
 
 // ---------------------------------------------------------------
