@@ -384,18 +384,18 @@ export class Performance extends Scene {
                     if (distance1 < 0.1) {
                         this.spawnFloater("Perfect!", Color.Green, this.Floaters);
                         this.meterValue = Math.min(100, this.meterValue + 8);
-                        this.score += baseScore * 4;
+                        this.score += baseScore * 4 * 1.2;
                         resources.performanceChime.play().catch(console.error);
                     } else if (distance1 < 0.20) {
                         this.spawnFloater("Nice", Color.fromHex("d3cd08"), this.Floaters);
                         this.meterValue = Math.min(100, this.meterValue + 5);
-                        this.score += baseScore * 3;
+                        this.score += baseScore * 3 * 1.2;
                     } else if (distance1 < 0.30) {
                         this.spawnFloater("Good", Color.LightGray, this.Floaters);
-                        this.score += baseScore * 2;
+                        this.score += baseScore * 3;
                     } else {
                         this.spawnFloater("Awful!", Color.Red, this.Floaters);
-                        this.meterValue = Math.max(0, this.meterValue - 6);
+                        this.meterValue = Math.max(0, this.meterValue - 4);
                         //this.score += baseScore * this.multiplier;
                     }
                 }
