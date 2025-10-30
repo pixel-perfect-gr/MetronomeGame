@@ -16,7 +16,7 @@ const introDuration = 1;
 const outroDuration = 1;
 
 const urlParameters = new URLSearchParams(window.location.search);
-const baseScore = urlParameters.get('points')  ?? 10;
+const baseScore = parseInt(urlParameters.get('points') ?? '10',10)  ?? 10;
 
 
 const pSheet = SpriteSheet.fromImageSource({
@@ -299,7 +299,7 @@ export class Performance extends Scene {
 
         // Kill transient actors safely
         for (const a of [...this.actors]) {
-            if (a instanceof Floater) a.kill();
+            if (a instanceof Floater) {a.kill();}
         }
 
         // Reset timers
@@ -552,6 +552,6 @@ export class Performance extends Scene {
         // Fade out + remove automatically
         line.actions
             .fade(0, 500)   // fade out over 300ms
-            .callMethod(() => line.kill());
+            .callMethod(() => void line.kill());
     }
 }
