@@ -14,7 +14,9 @@ import Arm from "./arm.js";
 
 const introDuration = 1;
 const outroDuration = 1;
-const baseScore = 10;
+
+const urlParameters = new URLSearchParams(window.location.search);
+const baseScore = urlParameters.get('points')  ?? 10;
 
 
 const pSheet = SpriteSheet.fromImageSource({
