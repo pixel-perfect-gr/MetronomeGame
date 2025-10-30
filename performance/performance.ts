@@ -354,7 +354,7 @@ export class Performance extends Scene {
                 this.arm.rotation = Math.sin(this.armPhase * Math.PI * 2) * (30 * Math.PI / 180);
 
                 // meter drains
-                this.drainRate = 10;
+                this.drainRate = 8;
                 this.meterValue -= this.drainRate * (delta / 1000);
 
 
@@ -388,14 +388,15 @@ export class Performance extends Scene {
                         resources.performanceChime.play().catch(console.error);
                     } else if (distance1 < 0.20) {
                         this.spawnFloater("Nice", Color.fromHex("d3cd08"), this.Floaters);
-                        this.meterValue = Math.min(100, this.meterValue + 5);
+                        this.meterValue = Math.min(100, this.meterValue + 6);
                         this.score += baseScore * 3 * 1.2;
                     } else if (distance1 < 0.30) {
                         this.spawnFloater("Good", Color.LightGray, this.Floaters);
+                        this.meterValue = Math.min(100, this.meterValue + 2);
                         this.score += baseScore * 3;
                     } else {
                         this.spawnFloater("Awful!", Color.Red, this.Floaters);
-                        this.meterValue = Math.max(0, this.meterValue - 4);
+                        this.meterValue = Math.max(0, this.meterValue - 2);
                         //this.score += baseScore * this.multiplier;
                     }
                 }
@@ -437,11 +438,20 @@ export class Performance extends Scene {
                 break;
         }
 
-        if ((this.state === State.countIn || this.state === State.done)) {
+        if (this.state === State.done) {
             this.idleTimer = (this.idleTimer || 0) + delta;
             //console.log("Idle timer:", this.idleTimer.toFixed(0), "ms");
 
             if (this.idleTimer > 5000 && !this.transitioningToLeaderboard) { // 10 seconds idle
+                this.transitioningToLeaderboard = true;
+                fadeToScene(engine, "leaderboard", 1000);
+            }
+
+        } else if (this.state === State.countIn) {
+            this.idleTimer = (this.idleTimer || 0) + delta;
+            //console.log("Idle timer:", this.idleTimer.toFixed(0), "ms");
+
+            if (this.idleTimer > 12000 && !this.transitioningToLeaderboard) { // 10 seconds idle
                 this.transitioningToLeaderboard = true;
                 fadeToScene(engine, "leaderboard", 1000);
             }
